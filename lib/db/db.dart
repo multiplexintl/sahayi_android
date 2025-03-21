@@ -1,7 +1,7 @@
 import 'dart:developer';
-import 'dart:io';
+// import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
+// import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 
@@ -17,21 +17,28 @@ class DBHelper {
   static const String docDetail = "DocDetails";
   static const String lastInvoices = "LastInvoices";
 
+  ///return
+  // static const String docMasterReturn = "DocMasterReturn";
+  // static const String docDetailsReturn = "DocDetailsReturn";
+
   // columns in tables
 
-  //InvMaster
+  //Doc Master
   static const String companyDocMaster = "Company";
   static const String docNumDocMaster = "DocNum";
+  static const String docTypeDocMaster = "DocType";
   static const String docDateDocMaster = "DocDate";
   static const String custNumDocMaster = "CustNum";
   static const String custNameDocMaster = "CustName";
   static const String statDocMaster = "Stat";
   static const String userIDDocMaster = "UserID";
   static const String scanTimeDocMaster = "ScanTime";
+  static const String pickedByDocMaster = "PickedBy";
 
-  // Part
+  // Doc Details
   static const String companyDocDetail = "Company";
   static const String docNumDocDetail = "DocNum";
+  static const String docTypeDocDetail = "DocType";
   static const String slNoDocDetail = "SlNo";
   static const String barcodeDocDetail = "Barcode";
   static const String partNumDocDetail = "PartNum";
@@ -40,10 +47,14 @@ class DBHelper {
   static const String shipQtyDocDetail = "ShipQty";
   static const String checkQtyDocDetail = "CheckQty";
   static const String statDocDetail = "Stat";
+  static const String reasonCodeDocDetail = "ReasonCode";
+  static const String reasonNameDocDetail = "ReasonName";
+  static const String expiryDateDocDetail = "ExpDate";
 
-  // Last Invoices
+  // Last Doc
   static const String userIDLastInvoices = "UserID";
   static const String docNumLastInvoices = "DocNum";
+  static const String docTypeLastInvoices = "DocType";
   static const String statLastInvoices = "Stat";
 
   // get db
@@ -55,50 +66,57 @@ class DBHelper {
     return _db!;
   }
 
-  static Future<String> get _localPath async {
-    // final directory = await getApplicationDocumentsDirectory();
-    // return directory.path;
-    // To get the external path from device of download folder
-    final String directory = await getExternalDocumentPath();
-    return directory;
-  }
+  // static Future<String> get _localPath async {
+  //   // final directory = await getApplicationDocumentsDirectory();
+  //   // return directory.path;
+  //   // To get the external path from device of download folder
+  //   final String directory = await getExternalDocumentPath();
+  //   return directory;
+  // }
 
-  static Future<String> getExternalDocumentPath() async {
-    Directory directory = Directory("");
-    if (Platform.isAndroid) {
-      // Redirects it to download folder in android
-      directory = Directory("/storage/emulated/0/sahayi/database/");
-    } else {
-      directory = await getApplicationDocumentsDirectory();
-    }
-    final exPath = directory.path;
-    log("Saved Path: $exPath");
-    await Directory(exPath).create(recursive: true);
-    return exPath;
-  }
+  // static Future<String> getExternalDocumentPath() async {
+  //   Directory directory = Directory("");
+  //   if (Platform.isAndroid) {
+  //     // Redirects it to download folder in android
+  //     directory = Directory("/storage/emulated/0/sahayi/database/");
+  //   } else {
+  //     directory = await getApplicationDocumentsDirectory();
+  //   }
+  //   final exPath = directory.path;
+  //   log("Saved Path: $exPath");
+  //   await Directory(exPath).create(recursive: true);
+  //   return exPath;
+  // }
 
   //open database
   static Future<Database> openDb() async {
-    // this saves the db to accessible location
-    final databasePath = await _localPath;
-    // this save the db to application location
-    // final databasePath = await getDatabasesPath();
+    final databasePath = await getDatabasesPath();
     final dbPath = path.join(databasePath, dbName);
-    log(dbPath);
+    log("Database Path: $dbPath");
+
     return openDatabase(
       dbPath,
-      //if app is building from scratch in dev, change the version to 1, then increment the number while uncommenting respective code in onUpgrade
-      // make sure all tables have altered table code before production.
-      version: 1,
+      version: 2, // Incremented version to apply schema changes
       onCreate: (db, version) async {
-        await createTables(db);
+        log("Creating new database...");
+        await _createTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        log("Upgrade old Version $oldVersion");
-        log("Upgrade new Version $newVersion");
-        if (oldVersion < newVersion) {
-          // use this to create new tables, alter table in dev only upgrade the version to run this
-          // make sure all altered table codes are integreted to create table code before production.
+        log("Upgrading database from $oldVersion to $newVersion...");
+
+        if (oldVersion < 1) {
+          // Add ExpiryDate column to DocDetails table
+          await db.execute(
+              "ALTER TABLE $docDetail ADD COLUMN $expiryDateDocDetail TEXT NULL;");
+
+          // Add PickedBy column to DocMaster table
+          await db.execute(
+              "ALTER TABLE $docMaster ADD COLUMN $pickedByDocMaster TEXT NULL;");
+        }
+
+        if (oldVersion < 2) {
+          // Future schema changes for version 3+
+          log("Future upgrades can be added here.");
         }
       },
     );
@@ -106,22 +124,26 @@ class DBHelper {
 
   // on create
   // if app is creating from scratch make sure to update this function to add altered table code
-  static Future<void> createTables(Database database) async {
+  static Future<void> _createTables(Database database) async {
     // InvMaster
     await database.execute("""CREATE TABLE $docMaster(
       $companyDocMaster TEXT NOT NULL,
       $docNumDocMaster TEXT NOT NULL,
+      $docTypeDocMaster TEXT NOT NULL,
       $docDateDocMaster TEXT NOT NULL,
       $custNumDocMaster TEXT NOT NULL,
       $custNameDocMaster TEXT NOT NULL,
       $statDocMaster TEXT NOT NULL,
       $userIDDocMaster TEXT NOT NULL,
-      $scanTimeDocMaster TEXT NOT NULL, PRIMARY KEY ($companyDocMaster,$docNumDocMaster))""");
+      $scanTimeDocMaster TEXT NOT NULL,
+      $pickedByDocMaster TEXT NULL,
+      PRIMARY KEY ($companyDocMaster,$docNumDocMaster,$docTypeDocMaster))""");
 
     // InvDetail table
     await database.execute("""CREATE TABLE $docDetail(
       $companyDocDetail TEXT NOT NULL,
       $docNumDocDetail TEXT NOT NULL,
+      $docTypeDocDetail TEXT NOT NULL,
       $slNoDocDetail INTEGER NOT NULL,
       $barcodeDocDetail TEXT NOT NULL,
       $partNumDocDetail TEXT NOT NULL,
@@ -129,12 +151,17 @@ class DBHelper {
       $brandDocDetail TEXT NOT NULL,
       $shipQtyDocDetail INTEGER NOT NULL,
       $checkQtyDocDetail INTEGER NOT NULL,
-      $statDocDetail TEXT NOT NULL, PRIMARY KEY ($companyDocDetail,$docNumDocDetail,$slNoDocDetail))""");
+      $statDocDetail TEXT NOT NULL,
+      $reasonCodeDocDetail TEXT NOT NULL,
+      $reasonNameDocDetail TEXT NOT NULL,
+      $expiryDateDocDetail TEXT NULL,
+      PRIMARY KEY ($companyDocDetail,$docNumDocDetail,$docTypeDocDetail, $slNoDocDetail))""");
 
     // LastInvoice table
     await database.execute("""CREATE TABLE $lastInvoices(
       $userIDLastInvoices TEXT NOT NULL,
       $docNumLastInvoices TEXT NOT NULL,
+      $docTypeLastInvoices TEXT NOT NULL,
       $statLastInvoices TEXT NOT NULL, PRIMARY KEY ($userIDLastInvoices,$docNumLastInvoices))""");
   }
 
@@ -170,6 +197,7 @@ class DBHelper {
         }
         result = await batch.commit(
           noResult: false,
+          continueOnError: false,
         );
       } catch (e) {
         // Handle different error scenarios
@@ -247,8 +275,10 @@ class DBHelper {
   }
 
   // sqflite query
-  static Future<List<Map<String, dynamic>>> getItemsByQuery(String tableName,
-      {String? where, List<Object?>? whereArgs}) async {
+  static Future<List<Map<String, dynamic>>> getItemsByQuery(
+      {required String tableName,
+      String? where,
+      List<Object?>? whereArgs}) async {
     final database = await db;
     return database.query(
       tableName,
@@ -378,20 +408,244 @@ class DBHelper {
     required String tableName,
     required Map<String, dynamic> data,
   }) async {
-    // log("Table to be inserted: $tableName");
-    // log("Data to be inserted: $data");
     final database = await db;
+    final result = await database.insert(
+      tableName,
+      data,
+    );
+    return result;
+  }
+
+// Get next SlNo (Total Length + 1)
+  static Future<int> getNextSlNo({
+    required String tableName,
+    required String company,
+    required String docType,
+    required String docNum,
+  }) async {
+    final database = await db;
+
+    final result = await database.rawQuery("""
+      SELECT COUNT(*) AS totalCount
+      FROM $tableName
+      WHERE $companyDocDetail = ? 
+        AND $docTypeDocDetail = ? 
+        AND $docNumDocDetail = ?
+    """, [company, docType, docNum]);
+
+    int totalCount = Sqflite.firstIntValue(result) ?? 0;
+    return totalCount + 1; // Next SlNo should be total count + 1
+  }
+
+  // Insert item with correct SlNo
+  static Future<int> insertItemWithSlNo({
+    required String tableName,
+    required Map<String, dynamic> data,
+    required int startingSlNo,
+  }) async {
+    final database = await db;
+
+    int nextSlNo = startingSlNo;
+
+    data[slNoDocDetail] = nextSlNo;
+
     final result = await database.insert(
       tableName,
       data,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    // log(result.toString());
-    //var updatedTable = await database.query(tableName);
-    // log("inserted into $tableName = $updatedTable");
-    return result;
+
+    return result > 0 ? nextSlNo : -1;
   }
 
+  // static Future<int> insertItemWithSlNo({
+  //   required String tableName,
+  //   required Map<String, dynamic> data,
+  // }) async {
+  //   final database = await db;
+
+  //   // Generate next SlNo dynamically
+  //   int nextSlNo = await getNextSlNo(
+  //     tableName: tableName,
+  //     company: data[companyDocDetail],
+  //     docType: data[docTypeDocDetail],
+  //     docNum: data[docNumDocDetail],
+  //   );
+
+  //   // Assign generated SlNo
+  //   data[slNoDocDetail] = nextSlNo;
+
+  //   // Insert into database
+  //   final result = await database.insert(
+  //     tableName,
+  //     data,
+  //     conflictAlgorithm: ConflictAlgorithm.replace, // Avoid duplicates
+  //   );
+
+  //   if (result > 0) {
+  //     return nextSlNo;
+  //   } else {
+  //     return -1;
+  //   }
+  //   // return result;
+  // }
+
+  /// Deletes an item from `docDetail` table and shifts SL numbers down if necessary.
+  static Future<bool> deleteItemAndShiftSlNo({
+    required String tableName,
+    required String company,
+    required String docNum,
+    required String docType,
+    required int slNo,
+  }) async {
+    final database = await db;
+
+    log("🚀 Deleting item with SlNo: $slNo for DocNum: $docNum");
+
+    // **Step 1: Delete the item**
+    int rowsAffected = await database.delete(
+      tableName,
+      where:
+          '$companyDocDetail = ? AND $docNumDocDetail = ? AND $docTypeDocDetail = ? AND $slNoDocDetail = ?',
+      whereArgs: [company, docNum, docType, slNo],
+    );
+
+    if (rowsAffected == 0) {
+      log("❌ No item found for deletion.");
+      return false;
+    }
+
+    log("✔ Item deleted. Shifting SL numbers...");
+
+    // **Step 2: Shift SL numbers of remaining items**
+    await database.rawUpdate("""
+    UPDATE $tableName
+    SET $slNoDocDetail = $slNoDocDetail - 1
+    WHERE $companyDocDetail = ? 
+      AND $docNumDocDetail = ? 
+      AND $docTypeDocDetail = ?
+      AND $slNoDocDetail > ?
+  """, [company, docNum, docType, slNo]);
+
+    log("✔ SL numbers successfully shifted.");
+    return true;
+  }
+
+  // /// Deletes an item from `docDetail` table and renumbers SL numbers.
+  // static Future<bool> deleteItemAndRearrange({
+  //   required String tableName,
+  //   required String company,
+  //   required String docNum,
+  //   required String docType,
+  //   required int slNo,
+  // }) async {
+  //   final database = await db;
+
+  //   log("🚀 Deleting item with SlNo: $slNo for DocNum: $docNum");
+
+  //   // **Step 1: Delete the item**
+  //   int rowsAffected = await database.delete(
+  //     tableName,
+  //     where:
+  //         '$companyDocDetail = ? AND $docNumDocDetail = ? AND $docTypeDocDetail = ? AND $slNoDocDetail = ?',
+  //     whereArgs: [company, docNum, docType, slNo],
+  //   );
+
+  //   if (rowsAffected == 0) {
+  //     log("❌ No item found for deletion.");
+  //     return false;
+  //   }
+
+  //   log("✔ Item deleted. Reordering SL numbers...");
+
+  //   // **Step 2: Fetch remaining items sorted by SlNo**
+  //   final List<Map<String, dynamic>> remainingItems =
+  //       await database.rawQuery("""
+  //   SELECT * FROM $tableName
+  //   WHERE $companyDocDetail = ?
+  //     AND $docNumDocDetail = ?
+  //     AND $docTypeDocDetail = ?
+  //   ORDER BY $slNoDocDetail ASC
+  // """, [company, docNum, docType]);
+
+  //   // **Step 3: Renumber SL No sequentially**
+  //   int newSlNo = 1;
+  //   for (var item in remainingItems) {
+  //     await database.update(
+  //       tableName,
+  //       {slNoDocDetail: newSlNo},
+  //       where:
+  //           '$companyDocDetail = ? AND $docNumDocDetail = ? AND $docTypeDocDetail = ? AND $slNoDocDetail = ?',
+  //       whereArgs: [company, docNum, docType, item[slNoDocDetail]],
+  //     );
+  //     newSlNo++;
+  //   }
+
+  //   log("✔ SL numbers successfully reordered.");
+  //   return true;
+  // }
+
+  // // Reorder SlNo sequentially after deletion
+  // static Future<void> renumberSlNo({
+  //   required String tableName,
+  //   required String company,
+  //   required String docType,
+  //   required String docNum,
+  // }) async {
+  //   final database = await db;
+
+  //   final List<Map<String, dynamic>> results = await database.rawQuery("""
+  //     SELECT $slNoDocDetail
+  //     FROM $tableName
+  //     WHERE $companyDocDetail = ?
+  //       AND $docTypeDocDetail = ?
+  //       AND $docNumDocDetail = ?
+  //     ORDER BY $slNoDocDetail ASC
+  //   """, [company, docType, docNum]);
+
+  //   // Renumbering starts from 1
+  //   int newSlNo = 1;
+  //   for (var item in results) {
+  //     await database.update(
+  //       tableName,
+  //       {slNoDocDetail: newSlNo},
+  //       where:
+  //           "$companyDocDetail = ? AND $docTypeDocDetail = ? AND $docNumDocDetail = ? AND $slNoDocDetail = ?",
+  //       whereArgs: [company, docType, docNum, item[slNoDocDetail]],
+  //     );
+  //     newSlNo++;
+  //   }
+  // }
+
+  // // Delete item and renumber SlNo
+  // static Future<bool> deleteItemWithSlNo({
+  //   required String tableName,
+  //   required String company,
+  //   required String docType,
+  //   required String docNum,
+  //   required int slNo,
+  // }) async {
+  //   final database = await db;
+
+  //   int rowsAffected = await database.delete(
+  //     tableName,
+  //     where:
+  //         "$companyDocDetail = ? AND $docTypeDocDetail = ? AND $docNumDocDetail = ? AND $slNoDocDetail = ?",
+  //     whereArgs: [company, docType, docNum, slNo],
+  //   );
+
+  //   if (rowsAffected > 0) {
+  //     // Reorder SlNo only if deletion was successful
+  //     await renumberSlNo(
+  //       tableName: tableName,
+  //       company: company,
+  //       docType: docType,
+  //       docNum: docNum,
+  //     );
+  //     return true; // Deletion was successful
+  //   }
+  //   return false; // No item deleted
+  // }
   // db raw insert
 
   static Future<int> updateItemTest({
@@ -420,14 +674,17 @@ class DBHelper {
   }
 
   // delete a single item from a table based on a condition
-  static Future<void> deleteItem(
-      String tableName, String columnName, String condition) async {
+  static Future<int> deleteItem(
+      {required String tableName,
+      required String columnName,
+      required String condition}) async {
     final database = await db;
     try {
-      await database
+      return await database
           .delete(tableName, where: "$columnName = ?", whereArgs: [condition]);
     } catch (e) {
       log("Something went wrong with error: $e");
+      return -1;
     }
   }
 
@@ -442,6 +699,22 @@ class DBHelper {
       log("Something went wrong with error: $e");
       return -1;
     }
+  }
+
+  static Future<int> deleteItemsByQuery({
+    required String tableName,
+    required String where,
+    required List<dynamic> whereArgs,
+  }) async {
+    final database = await db;
+
+    int rowsDeleted = await database.delete(
+      tableName,
+      where: where,
+      whereArgs: whereArgs,
+    );
+
+    return rowsDeleted;
   }
 
   // get the path of the database, takes the database name

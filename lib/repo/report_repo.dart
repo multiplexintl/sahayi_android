@@ -16,11 +16,14 @@ class ReportRepo {
     required String empId,
     String? fromDate,
     String? toDate,
+    required String type,
+    String? docNum,
+    required String docType,
   }) async {
     return await RetryHelper.retry<Either<String, List<Report>?>>(
         apiCall: () async {
           final Uri url = Uri.parse(
-              '${_url}Operational/GetRecentActivity?UserID=$empId&Company=$company&FromDate=$fromDate&ToDate=$toDate');
+              '${_url}Operational/GetRecentActivity?UserID=$empId&Company=$company&FromDate=$fromDate&ToDate=$toDate&DocNum=$docNum&DDType=$type&DocType=$docType');
           final client = http.Client();
           log(url.toString());
           final response = await client.get(url);

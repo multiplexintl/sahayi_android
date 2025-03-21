@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
-import 'package:sahayi_android/controller/home_controller.dart';
+import 'package:sahayi_android/controller/inv_trnf_controller.dart';
 import 'package:sahayi_android/model/user.dart';
 
 class ConnectivityController extends GetxController {
@@ -19,7 +19,7 @@ class ConnectivityController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
-    user = HomeController().user.value;
+    user = InvoiceOrTransferController().user.value;
     await _monitorConnectivity();
   }
 

@@ -78,6 +78,11 @@ class LoginScreen extends StatelessWidget {
                     : null,
               ),
             ),
+            SizedBox(height: 40),
+            Obx(() => Text(
+                  "Sahayi - v${con.version.value}b${con.buildNumber.value}",
+                  style: Theme.of(context).textTheme.labelSmall,
+                ))
           ],
         ),
       ),

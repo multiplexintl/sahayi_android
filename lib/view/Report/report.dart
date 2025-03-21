@@ -11,7 +11,7 @@ import 'package:sahayi_android/model/report/report.dart';
 import 'package:sahayi_android/widgets/bottom_bar.dart';
 import 'package:sahayi_android/widgets/button.dart';
 
-import '../widgets/year_picker.dart';
+import '../../widgets/year_picker.dart';
 
 class ReportViewPage extends StatelessWidget {
   const ReportViewPage({super.key});
@@ -37,17 +37,136 @@ class ReportViewPage extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),
-            Obx(
-              () => CheckboxListTile(
-                value: con.fetchAll.value,
-                onChanged: (val) {
-                  con.fetchAll.value = val!;
-                },
-                title: Text("Fetch all reports"),
-                controlAffinity: ListTileControlAffinity.leading,
-                visualDensity: VisualDensity(horizontal: -4, vertical: -4),
-                contentPadding: EdgeInsets.zero,
+            Row(
+              children: [
+                Expanded(
+                  child: Obx(
+                    () => CheckboxListTile(
+                      value: con.fetchAll.value,
+                      onChanged: (val) {
+                        con.fetchAll.value = val!;
+                      },
+                      title: Text("Fetch all companies reports"),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      visualDensity:
+                          VisualDensity(horizontal: -4, vertical: -4),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                // Padding(
+                //   padding: const EdgeInsets.only(right: 12),
+                //   child: SizedBox(
+                //     height: 38,
+                //     width: 160,
+                //     child: Obx(() => TextField(
+                //           controller: con.docNumController.value,
+                //           keyboardType: TextInputType.number,
+                //           decoration: CustomWidget()
+                //               .inputDecoration(context: context, radius: 10)
+                //               .copyWith(
+                //                 labelText: "Doc Num",
+                //                 contentPadding: EdgeInsets.only(left: 12),
+                //               ),
+                //         )),
+                //   ),
+                // ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: Obx(
+                    () => DropdownButton<Map<String, dynamic>>(
+                      icon: const Icon(Icons.arrow_drop_down),
+                      alignment: Alignment.centerLeft,
+                      isDense: true,
+                      isExpanded: true,
+                      borderRadius: BorderRadius.circular(16),
+                      elevation: 5,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      hint: Text(
+                        "Select Report Type",
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.merge(const TextStyle(
+                              letterSpacing: 1.2,
+                            )),
+                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
+                      menuWidth: 200,
+                      value: con.selectedType.value,
+                      items: con.reportTypes.map((element) {
+                        return DropdownMenuItem(
+                          value: element,
+                          child: Text(element.values.first
+                              .toString()), // Correctly extracts a value
+                        );
+                      }).toList(),
+                      onChanged: (map) {
+                        if (map != null) {
+                          con.selectedType.value = map;
+                        }
+                      },
+                    ),
+                  ),
+                ),
               ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.only(left: 10, right: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 20,
+                        width: 20,
+                        decoration: BoxDecoration(color: Colors.green),
+                      ),
+                      Text(" : Invoice"),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.only(left: 10, right: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 20,
+                        width: 20,
+                        decoration: BoxDecoration(color: Colors.yellow),
+                      ),
+                      Text(" : Transfer"),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.only(left: 10, right: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 20,
+                        width: 20,
+                        decoration: BoxDecoration(color: Colors.red),
+                      ),
+                      Text(" : Return"),
+                    ],
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 10),
             Padding(
@@ -62,7 +181,13 @@ class ReportViewPage extends StatelessWidget {
                           readOnly: true,
                           controller: con.fromDateController.value,
                           onTap: () {
+                            DateTime today = DateTime.now();
                             showYearMonthPicker(
+                              minimumYear: DateTime.now().year - 32,
+                              maximumYear: DateTime.now().year,
+                              maximumDate: today,
+                              minimumDate: DateTime(
+                                  today.year - 32, today.month, today.day),
                               dateNeeded: true,
                               initialDateTime: con
                                       .fromDateController.value.text.isNotEmpty
@@ -104,7 +229,13 @@ class ReportViewPage extends StatelessWidget {
                           controller: con.toDateController.value,
                           readOnly: true,
                           onTap: () {
+                            DateTime today = DateTime.now();
                             showYearMonthPicker(
+                              minimumYear: DateTime.now().year - 32,
+                              maximumYear: DateTime.now().year,
+                              maximumDate: today,
+                              minimumDate: DateTime(
+                                  today.year - 32, today.month, today.day),
                               dateNeeded: true,
                               initialDateTime: con
                                       .toDateController.value.text.isNotEmpty
@@ -183,9 +314,14 @@ class ReportViewPage extends StatelessWidget {
                   itemCount: con.reports.length,
                   itemBuilder: (context, index) {
                     var item = con.reports[index];
-                    return ReportContainerWidget(
-                      index: index,
-                      report: item,
+                    return GestureDetector(
+                      onTap: () {
+                        con.selectReport(item);
+                      },
+                      child: ReportContainerWidget(
+                        index: index,
+                        report: item,
+                      ),
                     );
                   })),
             )
@@ -207,6 +343,24 @@ class ReportContainerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    /// Returns color based on the document type
+    Color getColor(String? docType) {
+      switch (docType) {
+        case 'I':
+          return Colors.green.shade300;
+        case 'T':
+          return Colors.yellow.shade300;
+        case 'R':
+          return Colors.red.shade300;
+        default:
+          return Colors.white;
+      }
+    }
+
+    final Color bgColor = getColor(report?.docType);
+    final Color sidePanelColor =
+        index.isOdd ? Colors.white : Colors.grey.shade300;
+
     return Padding(
       padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
       child: Material(
@@ -215,7 +369,8 @@ class ReportContainerWidget extends StatelessWidget {
         child: Container(
           width: context.width,
           decoration: BoxDecoration(
-            color: index.isEven ? Colors.white : Colors.grey.shade300,
+            // color: index.isEven ? Colors.white : Colors.grey.shade300,
+            color: bgColor,
             borderRadius: BorderRadius.circular(15),
           ),
           child: IntrinsicHeight(
@@ -228,7 +383,8 @@ class ReportContainerWidget extends StatelessWidget {
                   width: 50,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                      color: index.isOdd ? Colors.white : Colors.grey.shade300,
+                      // color: index.isOdd ? Colors.white : Colors.grey.shade300,
+                      color: sidePanelColor,
                       borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(15),
                         topLeft: Radius.circular(15),
@@ -251,7 +407,7 @@ class ReportContainerWidget extends StatelessWidget {
                           children: [
                             Text("Company"),
                             Text("Doc Num"),
-                            Text("Cust Num"),
+                            Text("Cust ID"),
                             Text("Cust Name"),
                             Spacer(),
                             Text("Scan Time"),
@@ -274,7 +430,7 @@ class ReportContainerWidget extends StatelessWidget {
                             children: [
                               Text("${report?.company}"),
                               Text("${report?.docNum}"),
-                              Text("${report?.custNum}"),
+                              Text("${report?.custId}"),
                               Text("${report?.custName}"),
                               Spacer(),
                               Text("${report?.scanTime}"),

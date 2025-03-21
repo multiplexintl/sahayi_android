@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:one_clock/one_clock.dart';
 
-import '../controller/home_controller.dart';
+import '../controller/inv_trnf_controller.dart';
 
 class BottomBarWidget extends StatelessWidget {
   const BottomBarWidget({
@@ -11,7 +11,7 @@ class BottomBarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var con = Get.find<HomeController>();
+    var con = Get.find<InvoiceOrTransferController>();
     return Container(
       height: 40,
       width: double.infinity,

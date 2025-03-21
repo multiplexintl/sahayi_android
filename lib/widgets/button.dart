@@ -5,7 +5,9 @@ class ButtonWidget extends StatelessWidget {
   final double? height;
   final String title;
   final void Function()? onPressed;
+  final void Function()? onLongPress;
   final Widget? child;
+  final Color? backgroundColor;
 
   const ButtonWidget({
     super.key,
@@ -14,6 +16,8 @@ class ButtonWidget extends StatelessWidget {
     this.onPressed,
     this.height,
     this.child,
+    this.backgroundColor,
+    this.onLongPress,
   });
 
   @override
@@ -25,7 +29,7 @@ class ButtonWidget extends StatelessWidget {
           visualDensity: VisualDensity(vertical: -4, horizontal: -4),
           fixedSize: Size(350, height ?? 48),
           alignment: Alignment.center,
-          backgroundColor: Colors.blueGrey.shade400,
+          backgroundColor: backgroundColor ?? Colors.blueGrey.shade400,
           foregroundColor: Colors.white,
           shape: BeveledRectangleBorder(
             borderRadius: BorderRadius.circular(5),
@@ -35,6 +39,7 @@ class ButtonWidget extends StatelessWidget {
               ),
         ),
         onPressed: onPressed,
+        onLongPress: onLongPress,
         child: child ?? Text(title),
       ),
     );

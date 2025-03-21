@@ -60,10 +60,19 @@ class CustomWidget {
     return AppBar(
       automaticallyImplyLeading: back ?? false,
       title: Text(title),
+      titleTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
       backgroundColor: Colors.blue,
       leading: back == true
           ? IconButton(
-              icon: Icon(Icons.arrow_back_ios_new_rounded),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+                size: 25,
+              ),
               onPressed: back == true
                   ? () {
                       Get.back();
@@ -72,38 +81,38 @@ class CustomWidget {
             )
           : null,
       centerTitle: true,
-      actions: [
-        if (connectivity == true)
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: Obx(() => Container(
-                  height: 25,
-                  width: 25,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(50),
-                    color: connecCon.isInternetConnected.value
-                        ? Colors.green
-                        : Colors.red,
-                  ),
-                )),
-          ),
-        if (connectivity == false)
-          Padding(
-            padding: const EdgeInsets.only(right: 10, bottom: 0),
-            child: GestureDetector(
-              onTap: logout,
-              child: SizedBox(
-                height: 40,
-                width: 40,
-                child: Icon(
-                  Icons.logout,
-                  color: Colors.black,
-                  size: 25,
-                ),
-              ),
-            ),
-          )
-      ],
+      // actions: [
+      //   if (connectivity == true)
+      //     Padding(
+      //       padding: const EdgeInsets.only(right: 20),
+      //       child: Obx(() => Container(
+      //             height: 25,
+      //             width: 25,
+      //             decoration: BoxDecoration(
+      //               borderRadius: BorderRadius.circular(50),
+      //               color: connecCon.isInternetConnected.value
+      //                   ? Colors.green
+      //                   : Colors.red,
+      //             ),
+      //           )),
+      //     ),
+      //   if (connectivity == false && logout != null)
+      //     Padding(
+      //       padding: const EdgeInsets.only(right: 10, bottom: 0),
+      //       child: GestureDetector(
+      //         onTap: logout,
+      //         child: SizedBox(
+      //           height: 40,
+      //           width: 40,
+      //           child: Icon(
+      //             Icons.logout,
+      //             color: Colors.white,
+      //             size: 25,
+      //           ),
+      //         ),
+      //       ),
+      //     )
+      // ],
     );
   }
 
@@ -161,6 +170,7 @@ class CustomWidget {
     String? okText,
     required String title,
     required String subTitle,
+    Color? buttonColor,
     required void Function()? onPressed,
     void Function()? onPressedBack,
   }) {
@@ -208,7 +218,7 @@ class CustomWidget {
             Expanded(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: buttonColor ?? Colors.green,
                   fixedSize: const Size(double.infinity, 40),
                 ),
                 onPressed: onPressed,

@@ -11,6 +11,10 @@ void showYearMonthPicker({
   required bool dateNeeded,
   required void Function()? onTapCancel,
   required void Function()? onTapSubmit,
+  required int minimumYear,
+  required int maximumYear,
+  required DateTime maximumDate,
+  required DateTime minimumDate,
   DateTime? initialDateTime,
 }) {
   DateTime today = DateTime.now();
@@ -29,10 +33,10 @@ void showYearMonthPicker({
                   : CupertinoDatePickerMode.monthYear,
               dateOrder: DatePickerDateOrder.dmy,
               initialDateTime: initialDateTime ?? today,
-              minimumYear: DateTime.now().year - 32,
-              maximumYear: DateTime.now().year,
-              maximumDate: today,
-              minimumDate: DateTime(today.year - 32, today.month, today.day),
+              minimumYear: minimumYear,
+              maximumYear: maximumYear,
+              maximumDate: maximumDate,
+              minimumDate: minimumDate,
             ),
           ),
           Padding(

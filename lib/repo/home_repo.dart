@@ -5,9 +5,10 @@ import 'package:dartz/dartz.dart';
 import 'package:global_configuration/global_configuration.dart';
 import 'package:http/http.dart' as http;
 import 'package:sahayi_android/model/company.dart';
+import 'package:sahayi_android/model/pickers/pickers.dart';
 
 import '../helper/retry_helper.dart';
-import '../model/invoice/invoice.dart';
+import '../model/invoice/doc_master.dart';
 
 class HomeRepo {
   final String _url = GlobalConfiguration().getValue('api_base_url');
@@ -68,15 +69,15 @@ class HomeRepo {
     return await RetryHelper.retry<List<DocMaster>>(
       apiCall: () async {
         final Uri url = Uri.parse(
-            '${_url}Operational/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
+            '${_url}Return/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
         log(url.toString());
         final client = http.Client();
         final response = await client.get(url);
-        log("Response Code get invoice: ${response.statusCode}");
+        log("Response Code get Doc: ${response.statusCode}");
         if (response.statusCode == 200) {
-          log(response.body.toString());
+          // log(response.body.toString());
           List<dynamic> jsonList = json.decode(response.body);
-          log(response.body.toString());
+          // log(response.body.toString());
           List<DocMaster> invoices =
               jsonList.map((json) => DocMaster.fromJson(json)).toList();
           return invoices;
@@ -96,11 +97,12 @@ class HomeRepo {
     required String userId,
     required String docNum,
     required String docType,
+    required String pickedBy,
   }) async {
     return await RetryHelper.retry<bool>(
       apiCall: () async {
         final Uri url = Uri.parse(
-            '${_url}Operational/UpdateDocument?UserID=$userId&DocNum=$docNum&DocType=$docType&Company=$company');
+            '${_url}Operational/UpdateDocument?UserID=$userId&DocNum=$docNum&DocType=$docType&Company=$company&PickedBy=$pickedBy');
         final client = http.Client();
         log(url.toString());
         final response = await client.post(url);
@@ -131,6 +133,31 @@ class HomeRepo {
           log(response.body.toString());
           List<Company> invoices =
               jsonList.map((json) => Company.fromJson(json)).toList();
+          return invoices;
+        } else {
+          return [];
+        }
+      },
+      defaultValue: [],
+      maxRetries: 3,
+      shouldRetry: (result) => result == [],
+    );
+  }
+
+  Future<List<Pickers>> getPickers() async {
+    return await RetryHelper.retry<List<Pickers>>(
+      apiCall: () async {
+        final Uri url = Uri.parse('${_url}Return/GetUserList?query=');
+        log(url.toString());
+        final client = http.Client();
+        final response = await client.get(url);
+        log("Response Code get invoice: ${response.statusCode}");
+        if (response.statusCode == 200) {
+          // log(response.body.toString());
+          List<dynamic> jsonList = json.decode(response.body);
+          // log(response.body.toString());
+          List<Pickers> invoices =
+              jsonList.map((json) => Pickers.fromJson(json)).toList();
           return invoices;
         } else {
           return [];

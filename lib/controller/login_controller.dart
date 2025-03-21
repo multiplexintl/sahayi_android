@@ -3,6 +3,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sahayi_android/helper/custom_widget.dart';
 import 'package:sahayi_android/repo/login_repo.dart';
 import 'package:sahayi_android/routes.dart';
@@ -21,6 +22,16 @@ class LoginController extends GetxController {
   var currentUser = User();
 
   var isLoading = false.obs;
+  var version = Rxn<String>();
+  var buildNumber = Rxn<String>();
+
+  @override
+  void onInit() async {
+    super.onInit();
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    version.value = packageInfo.version;
+    buildNumber.value = packageInfo.buildNumber;
+  }
 
   void login() async {}
 

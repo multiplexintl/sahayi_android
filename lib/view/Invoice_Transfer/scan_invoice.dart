@@ -1,12 +1,9 @@
-import 'dart:developer';
-
 import 'package:auto_size_text_plus/auto_size_text_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:sahayi_android/controller/home_controller.dart';
+import 'package:sahayi_android/controller/inv_trnf_controller.dart';
 import 'package:sahayi_android/helper/custom_colors.dart';
 import 'package:sahayi_android/helper/custom_widget.dart';
 import 'package:sahayi_android/widgets/button.dart';
@@ -17,7 +14,7 @@ class ScanInvoiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     GlobalKey<FormState> formKey = GlobalKey<FormState>();
-    var con = Get.find<HomeController>();
+    var con = Get.find<InvoiceOrTransferController>();
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
@@ -38,7 +35,7 @@ class ScanInvoiceScreen extends StatelessWidget {
                             con.fillAllDebug();
                           },
                           child: Text(
-                            "Inv No:  ${con.invoice.value.docNum ?? ''}",
+                            "${con.isInvoice.value ? 'Invoice' : 'Transfer'} No:  ${con.docMaster.value.docNum ?? ''}",
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
@@ -48,7 +45,7 @@ class ScanInvoiceScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          "Inv Date:",
+                          "${con.isInvoice.value ? 'Invoice' : 'Transfer'} Date:",
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     color: Colors.blue,
@@ -59,7 +56,7 @@ class ScanInvoiceScreen extends StatelessWidget {
                             try {
                               return DateFormat("MM/dd/yyyy").format(
                                   DateFormat("M/d/yyyy h:mm:ss a")
-                                      .parse("${con.invoice.value.docDate}"));
+                                      .parse("${con.docMaster.value.docDate}"));
                             } catch (e) {
                               return "";
                             }
@@ -76,7 +73,7 @@ class ScanInvoiceScreen extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Obx(() => Text(
-                          "${(con.isInvoice.value) ? "Cust Name" : "Store Name"}: ${con.invoice.value.custName ?? ''}",
+                          "${(con.isInvoice.value) ? "Cust Name" : "Store Name"}: ${con.docMaster.value.custName ?? ''}",
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     color: Colors.red,
@@ -97,6 +94,7 @@ class ScanInvoiceScreen extends StatelessWidget {
                           () => TextFormField(
                             controller: con.barcodeController,
                             enabled: !con.scanIsLoading.value,
+                            focusNode: con.barcodeFocusNode,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'This field cannot be empty';
@@ -130,37 +128,39 @@ class ScanInvoiceScreen extends StatelessWidget {
                       SizedBox(
                         // height: 50,
                         width: 70,
-                        child: Obx(() => TextFormField(
-                              controller: con.qtyController,
-                              keyboardType: TextInputType.number,
-                              textInputAction: TextInputAction.go,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              onEditingComplete: () {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                con.saveQty();
-                              },
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'This field cannot be empty';
-                                }
-                                return null; // Input is valid
-                              },
-                              enabled: !con.scanIsLoading.value,
-                              decoration: CustomWidget()
-                                  .inputDecoration(context: context)
-                                  .copyWith(
-                                    labelText: "Qty",
-                                    contentPadding: EdgeInsets.only(left: 12),
-                                    errorStyle: TextStyle(
-                                      fontSize:
-                                          10.0, // Smaller text for error message
-                                      height:
-                                          0.8, // Adjust height for compactness
-                                    ),
+                        child: Obx(
+                          () => TextFormField(
+                            controller: con.qtyController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.go,
+                            focusNode: con.qtyFocusNode,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onEditingComplete: () {
+                              con.saveQty();
+                            },
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'This field cannot be empty';
+                              }
+                              return null; // Input is valid
+                            },
+                            enabled: !con.scanIsLoading.value,
+                            decoration: CustomWidget()
+                                .inputDecoration(context: context)
+                                .copyWith(
+                                  labelText: "Qty",
+                                  contentPadding: EdgeInsets.only(left: 12),
+                                  errorStyle: TextStyle(
+                                    fontSize:
+                                        10.0, // Smaller text for error message
+                                    height:
+                                        0.8, // Adjust height for compactness
                                   ),
-                            )),
+                                ),
+                          ),
+                        ),
                       ),
                       SizedBox(width: 5),
                       Obx(() => ButtonWidget(
@@ -234,35 +234,40 @@ class ScanInvoiceScreen extends StatelessWidget {
                 // Table using listvie builder
                 HeadingWidget2(),
                 Expanded(
-                  child: Obx(() => con.invoice.value.docNum == null
+                  child: Obx(() => con.docMaster.value.docNum == null
                       ? Center(
                           child: Text("No Data"),
                         )
-                      : ListView.builder(
-                          controller: con.scrollController,
-                          shrinkWrap: true,
-                          itemCount: con.invoice.value.docDetails?.length,
-                          padding: EdgeInsets.only(bottom: 230),
-                          itemBuilder: (context, index) {
-                            var item = con.invoice.value.docDetails?[index];
-                            return GestureDetector(
-                              onTap: () {
-                                con.testSave(item.barcode!, item.shipQty!);
+                      : GetBuilder<InvoiceOrTransferController>(
+                          builder: (con) {
+                            return ListView.builder(
+                              controller: con.scrollController,
+                              shrinkWrap: true,
+                              itemCount: con.docMaster.value.docDetails?.length,
+                              padding: EdgeInsets.only(bottom: 230),
+                              itemBuilder: (context, index) {
+                                var item =
+                                    con.docMaster.value.docDetails?[index];
+                                return GestureDetector(
+                                  onTap: () {
+                                    con.testSave(item.barcode!, item.shipQty!);
+                                  },
+                                  child: TableRowWidget2(
+                                    index: index + 1,
+                                    partNum: "${item?.partNum}",
+                                    partName: "${item?.partName}",
+                                    barcode: "${item?.barcode}",
+                                    qty1: item!.shipQty!,
+                                    qty2: item.checkQty!,
+                                    bgColor: item.checkQty == item.shipQty
+                                        ? Colors.green.shade300
+                                        : Colors.red.shade100,
+                                    textColor: item.checkQty == item.shipQty
+                                        ? Colors.white
+                                        : Colors.black,
+                                  ),
+                                );
                               },
-                              child: TableRowWidget2(
-                                index: index + 1,
-                                partNum: "${item?.partNum}",
-                                partName: "${item?.partName}",
-                                barcode: "${item?.barcode}",
-                                qty1: item!.shipQty!,
-                                qty2: item.checkQty!,
-                                bgColor: item.checkQty == item.shipQty
-                                    ? Colors.green.shade300
-                                    : Colors.red.shade100,
-                                textColor: item.checkQty == item.shipQty
-                                    ? Colors.white
-                                    : Colors.black,
-                              ),
                             );
                           },
                         )),
@@ -279,20 +284,22 @@ class ScanInvoiceScreen extends StatelessWidget {
                             onPressed: con.scanIsLoading.value
                                 ? null
                                 : () {
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                    con.clearFields();
+                                    con.clearInputFields();
                                   },
                           )),
                       Obx(() => ButtonWidget(
                             title: "Finalize ",
                             height: 48,
                             width: 150,
-                            onPressed: con.scanIsLoading.value
-                                ? null
-                                : () {
-                                    con.finalize();
-                                  },
+                            backgroundColor: con.isFinalize.value
+                                ? Colors.green
+                                : Colors.grey,
+                            onPressed:
+                                con.scanIsLoading.value || !con.isFinalize.value
+                                    ? null
+                                    : () {
+                                        con.finalize();
+                                      },
                             child: con.scanIsLoading.value
                                 ? SizedBox(
                                     height: 15,
