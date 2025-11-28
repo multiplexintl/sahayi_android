@@ -32,7 +32,7 @@ class BottomBarWidget extends StatelessWidget {
           DigitalClock(
             showSeconds: true,
             isLive: true,
-            digitalClockColor: Colors.white,
+            //digitalClockColor: Colors.white,
             datetime: DateTime.now(),
             textScaleFactor: 1.15,
           ),

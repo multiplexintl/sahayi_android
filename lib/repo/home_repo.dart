@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:sahayi_android/model/company.dart';
 import 'package:sahayi_android/model/pickers/pickers.dart';
 
+import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 import '../model/invoice/doc_master.dart';
 
@@ -22,7 +23,8 @@ class HomeRepo {
       apiCall: () async {
         final Uri url = Uri.parse(
             '${_url}Operational/Sync_Document?Company=$company&DocNum=$docNum&DocType=$docType');
-        final client = http.Client();
+        // final client = http.Client();
+        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
         log(url.toString());
         try {
           final response = await client.get(url);
@@ -71,7 +73,8 @@ class HomeRepo {
         final Uri url = Uri.parse(
             '${_url}Return/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
         log(url.toString());
-        final client = http.Client();
+        // final client = http.Client();
+        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get Doc: ${response.statusCode}");
         if (response.statusCode == 200) {
@@ -103,7 +106,8 @@ class HomeRepo {
       apiCall: () async {
         final Uri url = Uri.parse(
             '${_url}Operational/UpdateDocument?UserID=$userId&DocNum=$docNum&DocType=$docType&Company=$company&PickedBy=$pickedBy');
-        final client = http.Client();
+        // final client = http.Client();
+        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
         log(url.toString());
         final response = await client.post(url);
         log("Response Code Sync DocMaster: ${response.statusCode}");
@@ -124,7 +128,8 @@ class HomeRepo {
       apiCall: () async {
         final Uri url = Uri.parse('${_url}Operational/GetCompanyMaster');
         log(url.toString());
-        final client = http.Client();
+        // final client = http.Client();
+        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get invoice: ${response.statusCode}");
         if (response.statusCode == 200) {
@@ -149,7 +154,8 @@ class HomeRepo {
       apiCall: () async {
         final Uri url = Uri.parse('${_url}Return/GetUserList?query=');
         log(url.toString());
-        final client = http.Client();
+        // final client = http.Client();
+        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get invoice: ${response.statusCode}");
         if (response.statusCode == 200) {

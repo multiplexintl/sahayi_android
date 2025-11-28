@@ -286,6 +286,9 @@ class ScanInvoiceScreen extends StatelessWidget {
                                 : () {
                                     con.clearInputFields();
                                   },
+                            onLongPress: () {
+                              con.clearAllDebug();
+                            },
                           )),
                       Obx(() => ButtonWidget(
                             title: "Finalize ",

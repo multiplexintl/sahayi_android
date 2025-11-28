@@ -27,6 +27,9 @@ class ReportController extends GetxController {
   var reportTypes = <Map<String, dynamic>>[].obs;
   var selectedReport = Rxn<Report>();
   var detailedReport = Rxn<DocMaster>();
+  var filteredReports = <Report>[].obs;
+  var isSearching = false.obs;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void onInit() {
@@ -43,6 +46,30 @@ class ReportController extends GetxController {
       {"A": "All"}
     ];
     selectedType.value = reportTypes.last;
+  }
+
+  void toggleSearch() {
+    isSearching.value = !isSearching.value;
+    if (!isSearching.value) {
+      searchController.clear();
+      filteredReports.assignAll(reports);
+    }
+  }
+
+  void filterReports(String query) {
+    log(reports.length.toString());
+    if (query.isEmpty) {
+      filteredReports.assignAll(reports);
+    } else {
+      String lowerQuery = query.toLowerCase();
+      filteredReports.assignAll(
+        reports.where((report) {
+          String docNum =
+              report.docNum?.toLowerCase() ?? ""; // Ensure null safety
+          return docNum.contains(lowerQuery);
+        }).toList(),
+      );
+    }
   }
 
   void updateDate({DateTime? date, required bool isFrom}) async {
@@ -185,6 +212,9 @@ class ReportController extends GetxController {
       // Map and sort reports
       reports.value =
           mapAndSortReportsByScanTime(allReports, homeCon.companyList);
+      filteredReports.value =
+          mapAndSortReportsByScanTime(allReports, homeCon.companyList);
+      update();
       log(reports[0].toString());
 
       CustomWidget.customSnackBar(
@@ -211,6 +241,9 @@ class ReportController extends GetxController {
     fromDateController.value.clear();
     toDateController.value.clear();
     docNumController.value.clear();
+    reports.clear();
+    filteredReports.clear();
+    update();
   }
 
   List<Report> mapAndSortReportsByScanTime(

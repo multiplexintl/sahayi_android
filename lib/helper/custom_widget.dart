@@ -81,38 +81,38 @@ class CustomWidget {
             )
           : null,
       centerTitle: true,
-      // actions: [
-      //   if (connectivity == true)
-      //     Padding(
-      //       padding: const EdgeInsets.only(right: 20),
-      //       child: Obx(() => Container(
-      //             height: 25,
-      //             width: 25,
-      //             decoration: BoxDecoration(
-      //               borderRadius: BorderRadius.circular(50),
-      //               color: connecCon.isInternetConnected.value
-      //                   ? Colors.green
-      //                   : Colors.red,
-      //             ),
-      //           )),
-      //     ),
-      //   if (connectivity == false && logout != null)
-      //     Padding(
-      //       padding: const EdgeInsets.only(right: 10, bottom: 0),
-      //       child: GestureDetector(
-      //         onTap: logout,
-      //         child: SizedBox(
-      //           height: 40,
-      //           width: 40,
-      //           child: Icon(
-      //             Icons.logout,
-      //             color: Colors.white,
-      //             size: 25,
-      //           ),
-      //         ),
-      //       ),
-      //     )
-      // ],
+      actions: [
+        // if (connectivity == true)
+        //   Padding(
+        //     padding: const EdgeInsets.only(right: 20),
+        //     child: Obx(() => Container(
+        //           height: 25,
+        //           width: 25,
+        //           decoration: BoxDecoration(
+        //             borderRadius: BorderRadius.circular(50),
+        //             color: connecCon.isInternetConnected.value
+        //                 ? Colors.green
+        //                 : Colors.red,
+        //           ),
+        //         )),
+        //   ),
+        if (logout != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 10, bottom: 0),
+            child: GestureDetector(
+              onTap: logout,
+              child: SizedBox(
+                height: 40,
+                width: 40,
+                child: Icon(
+                  Icons.logout,
+                  color: Colors.white,
+                  size: 25,
+                ),
+              ),
+            ),
+          )
+      ],
     );
   }
 

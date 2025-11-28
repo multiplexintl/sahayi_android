@@ -449,6 +449,9 @@ class InvoiceOrTransferController extends GetxController {
 
         /// Navigate to scan page if invoice number exists
         if (docMaster.value.docNum != null) {
+          // here check for enabling finalize button
+          isFinalize.value =
+              invoiceDetails.every((item) => item.checkQty == item.shipQty);
           Get.toNamed(RouteLinks.scanInvoice);
         } else {
           _showErrorSnackbar(
@@ -614,6 +617,8 @@ class InvoiceOrTransferController extends GetxController {
     scannedItem.value = DocDetail();
   }
 
+  
+
   // Future<void> finalize() async {
   //   try {
   //     scanIsLoading.value = true;
@@ -697,7 +702,7 @@ class InvoiceOrTransferController extends GetxController {
 
       if (allMatch) {
         // Set `isFinalize` to true before proceeding
-        isFinalize.value = true;
+        // isFinalize.value = true;
 
         // Show confirmation dialog
         CustomWidget.customDialogue(
@@ -716,7 +721,7 @@ class InvoiceOrTransferController extends GetxController {
           },
           onPressedBack: () {
             scanIsLoading.value = false; // Reset loading state
-            isFinalize.value = false; // Reset `isFinalize` if user cancels
+            // isFinalize.value = false; // Reset `isFinalize` if user cancels
             Get.back(); // Close the dialog
           },
         );
@@ -737,7 +742,7 @@ class InvoiceOrTransferController extends GetxController {
         message: "An error occurred while finalizing. Please try again.",
         backgroundColor: Colors.red,
       );
-      isFinalize.value = false; // Reset `isFinalize` in case of error
+      // isFinalize.value = false; // Reset `isFinalize` in case of error
     } finally {
       scanIsLoading.value = false; // Reset loading state
     }
@@ -860,6 +865,27 @@ class InvoiceOrTransferController extends GetxController {
         );
       }
       isFinalize.value = true;
+    }
+    update();
+  }
+
+  void clearAllDebug() async {
+    if (kDebugMode) {
+      for (var element in docMaster.value.docDetails!) {
+        element.stat = 'N';
+        element.checkQty = 0;
+        final updatedData = element.toDB();
+        // Update the database first
+        await DBHelper.updateItemWith2Conditions(
+          DBHelper.docDetail, // Table name
+          updatedData, // Data to update
+          DBHelper.barcodeDocDetail, // Key column 1
+          DBHelper.docNumDocDetail, // Key column 2
+          element.barcode!, // Condition 1 (barcode)
+          element.docNum!.toString(), // Condition 2 (invoice number)
+        );
+      }
+      isFinalize.value = false;
     }
     update();
   }

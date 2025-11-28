@@ -6,6 +6,7 @@ import 'package:global_configuration/global_configuration.dart';
 import 'package:http/http.dart' as http;
 import 'package:sahayi_android/model/report/report.dart';
 
+import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 
 class ReportRepo {
@@ -24,7 +25,9 @@ class ReportRepo {
         apiCall: () async {
           final Uri url = Uri.parse(
               '${_url}Operational/GetRecentActivity?UserID=$empId&Company=$company&FromDate=$fromDate&ToDate=$toDate&DocNum=$docNum&DDType=$type&DocType=$docType');
-          final client = http.Client();
+          // final client = http.Client();
+          final client =
+             await HttpClientHelper().getClient(); // Instead of http.Client()
           log(url.toString());
           final response = await client.get(url);
           log("Response Code: ${response.statusCode}");

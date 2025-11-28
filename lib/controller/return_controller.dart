@@ -14,6 +14,7 @@ import 'package:sahayi_android/model/pickers/pickers.dart';
 import 'package:sahayi_android/model/return/customer.dart';
 import 'package:sahayi_android/model/return/reasons.dart';
 
+import '../model/company.dart';
 import '../model/return/part.dart';
 
 import '../repo/home_repo.dart';
@@ -52,15 +53,42 @@ class ReturnController extends GetxController {
   // var showOtherTextField = false.obs;
   var reasons = <Reasons>[].obs;
   var selectedReason = Rxn<Reasons>();
-
+  List<Company> companyList = [];
   var savedItems = <DocDetail>[].obs;
   var consolidatedSavedItems = <DocDetail>[].obs;
+  var syncIsLoading = false.obs;
+  Rxn<Company> selectedCompany = Rxn<Company>();
   @override
   void onInit() {
     super.onInit();
+    getCompanies();
     getAllReasons();
     getUnfinishedDocs();
     getPickers();
+  }
+
+  Future<void> getCompanies() async {
+    try {
+      final list = await HomeRepo().getCompany();
+      if (list.isNotEmpty) {
+        companyList = list;
+      } else {
+        CustomWidget.customSnackBar(
+          title: "Error!!",
+          message: "Companies not loaded, please restart the app.",
+        );
+      }
+    } catch (e) {
+      CustomWidget.customSnackBar(
+        title: "Error!!",
+        message: "Failed to load companies. Error: $e",
+      );
+    }
+  }
+
+  void selectComapny(Company? company) {
+    selectedCompany.value = company;
+    update();
   }
 
   Future<void> getPickers() async {
@@ -95,7 +123,7 @@ class ReturnController extends GetxController {
     if (query.isNotEmpty) {
       // matches.addAll(fakeCustomers);
       var res = await RetrunRepo().fetchCustomer(
-        company: homeCon.user.value.company!,
+        company: selectedCompany.value!.companyId!,
         query: query,
       );
       res.fold((error) {
@@ -125,6 +153,7 @@ class ReturnController extends GetxController {
   }
 
   void clearCustSelction() {
+    selectedCompany.value = null;
     custController.clear();
     docNumController.clear();
     docDateController.clear();
@@ -179,8 +208,10 @@ class ReturnController extends GetxController {
 
       /// **Handling Unfinished Document Selection**
       if (item != null) {
-        log("User selected from Unfinished List: ${item.docNum}");
+        log("User selected from Unfinished List: $item");
 
+        selectedCompany.value =
+            companyList.firstWhere((test) => test.companyId == item.company);
         fullDocNum = "${item.custID}${item.docNum}";
         selectedCustomer.value.custId = item.custID;
         selectedCustomer.value.custName = item.custName;
@@ -246,7 +277,8 @@ class ReturnController extends GetxController {
 
       // **Handling New Document Entry**
       log("STEP 4: Handling User-Entered Document...");
-      if (custController.text.isEmpty ||
+      if (selectedCompany.value == null ||
+          custController.text.isEmpty ||
           docNumController.text.isEmpty ||
           docDateController.text.isEmpty ||
           selectedDriver.value == null) {
@@ -287,7 +319,7 @@ class ReturnController extends GetxController {
         tableName: DBHelper.docDetail,
         where:
             '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
-        whereArgs: [homeCon.user.value.company, fullDocNum, 'R'],
+        whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
       );
       log(fromDB.toString());
       bool existsInDB = fromDB.isNotEmpty;
@@ -466,7 +498,7 @@ class ReturnController extends GetxController {
   //     tableName: DBHelper.docDetail,
   //     where:
   //         '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
-  //     whereArgs: [homeCon.user.value.company, fullDocNum, 'R'],
+  //     whereArgs: [selectedCompany.value.companyId, fullDocNum, 'R'],
   //   );
   //   log(fromDB.toString());
   //   bool existsInDB = fromDB.isNotEmpty;
@@ -521,7 +553,7 @@ class ReturnController extends GetxController {
     log("Setting Next SL No: ${scanStartingSlNo.value}");
 
     var data = {
-      DBHelper.companyDocMaster: homeCon.user.value.company,
+      DBHelper.companyDocMaster: selectedCompany.value?.companyId,
       DBHelper.custNumDocMaster: selectedCustomer.value.custId,
       DBHelper.docTypeDocMaster: 'R',
       DBHelper.docDateDocMaster: docDate.value,
@@ -545,7 +577,7 @@ class ReturnController extends GetxController {
         tableName: DBHelper.docDetail,
         where:
             '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
-        whereArgs: [homeCon.user.value.company, fullDocNum, 'R'],
+        whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
       );
 
       List<DocDetail> localItems = fromDB.isNotEmpty
@@ -562,7 +594,7 @@ class ReturnController extends GetxController {
   /// **Fetch Return Details from API**
   Future<List<DocMaster>> getReturnDetails() async {
     return await RetrunRepo().getReturnDetails(
-      company: homeCon.user.value.company!,
+      company: selectedCompany.value!.companyId!,
       docNum: "${selectedCustomer.value.custId}${docNumber.value!}",
       docType: 'R',
     );
@@ -695,18 +727,19 @@ class ReturnController extends GetxController {
   }
 
   void onBarcodeChanged(String value) {
+    selectedPart.value = null;
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
 
-    // Directly move focus if scan completes (length == 13)
-    if (value.length == 13) {
-      fetchBarcodeDetails(value, shouldRequestFocus: true);
+    final trimmedValue = value.trim();
+
+    if (trimmedValue.length == 13) {
+      fetchBarcodeDetails(trimmedValue, shouldRequestFocus: true);
       return;
     }
 
-    // Start debounce timer if length is 10+ to fetch details
-    if (value.length >= 10) {
-      _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-        fetchBarcodeDetails(value, shouldRequestFocus: true);
+    if (trimmedValue.length >= 10) {
+      _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+        fetchBarcodeDetails(trimmedValue, shouldRequestFocus: true);
       });
     }
   }
@@ -714,19 +747,55 @@ class ReturnController extends GetxController {
   /// **Fetch Part Details from API**
   Future<void> fetchBarcodeDetails(String barcode,
       {required bool shouldRequestFocus}) async {
-    var res = await RetrunRepo().getPart(company: 'EPIC01', query: barcode);
-    res.fold((error) {
-      CustomWidget.customSnackBar(
-        title: "Not Found!!",
-        message: "No item found for the entered barcode. Please check again.",
-        backgroundColor: Colors.red,
-      );
-    }, (part) {
-      selectedPart.value = part;
-      if (shouldRequestFocus) {
-        qtyFocusNode.requestFocus(); // Only request focus if part is found
-      }
-    });
+    final result = await RetrunRepo().getPart(query: barcode);
+    log(result.toString());
+
+    result.fold(
+      (error) {
+        // Handle only real API failure here
+        if (error != "No Item Found!!") {
+          CustomWidget.customSnackBar(
+            title: "Error",
+            message: "Unable to fetch item details. Please check the barcode.",
+            backgroundColor: Colors.red,
+          );
+        }
+      },
+      (parts) {
+        if (parts == null || parts.isEmpty) {
+          // No parts found by API
+          CustomWidget.customSnackBar(
+            title: "Not Found!!",
+            message:
+                "No item found for the entered barcode. Please check again.",
+            backgroundColor: Colors.red,
+          );
+          return;
+        }
+
+        // Search for item matching the selected company
+        selectedPart.value = parts.firstWhereOrNull(
+          (part) => part.company == selectedCompany.value?.companyId,
+        );
+
+        if (selectedPart.value == null) {
+          // Item exists but doesn't belong to selected company
+          CustomWidget.customSnackBar(
+            title: "Not Found!!",
+            message:
+                "No item found for the entered barcode. Please check again.",
+            backgroundColor: Colors.red,
+          );
+          return;
+        }
+
+        log(selectedPart.string);
+
+        if (shouldRequestFocus) {
+          qtyFocusNode.requestFocus();
+        }
+      },
+    );
   }
 
   void onSavePart() async {
@@ -773,7 +842,7 @@ class ReturnController extends GetxController {
       tableName: DBHelper.docDetail,
       where:
           '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
-      whereArgs: [homeCon.user.value.company, fullDocNum, 'R'],
+      whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
     );
 
     int lastDbSlNo = dbItems.isNotEmpty
@@ -788,7 +857,7 @@ class ReturnController extends GetxController {
 
     // Prepare data
     var data = {
-      DBHelper.companyDocDetail: homeCon.user.value.company,
+      DBHelper.companyDocDetail: selectedCompany.value?.companyId,
       DBHelper.docNumDocDetail: fullDocNum,
       DBHelper.docTypeDocDetail: 'R',
       DBHelper.barcodeDocDetail: barcodeController.text,
@@ -820,7 +889,7 @@ class ReturnController extends GetxController {
         tableName: DBHelper.docDetail,
         where:
             '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
-        whereArgs: [homeCon.user.value.company, fullDocNum, 'R'],
+        whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
       );
 
       savedItems.value =
@@ -852,7 +921,7 @@ class ReturnController extends GetxController {
         where:
             '${DBHelper.companyDocDetail} = ? and ${DBHelper.docNumDocDetail} = ? and ${DBHelper.docTypeDocDetail} = ?',
         whereArgs: [
-          homeCon.user.value.company,
+          selectedCompany.value?.companyId,
           "${selectedCustomer.value.custId}${docNumber.value}",
           'R'
         ]);
@@ -885,7 +954,7 @@ class ReturnController extends GetxController {
     // **Step 1: Call DBHelper function**
     bool success = await DBHelper.deleteItemAndShiftSlNo(
       tableName: DBHelper.docDetail,
-      company: homeCon.user.value.company!,
+      company: selectedCompany.value!.companyId!,
       docNum: fullDocNum,
       docType: 'R',
       slNo: slNo,
@@ -899,7 +968,7 @@ class ReturnController extends GetxController {
         tableName: DBHelper.docDetail,
         where:
             '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
-        whereArgs: [homeCon.user.value.company, fullDocNum, 'R'],
+        whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
       );
 
       // **Step 3: Update UI with new list**
@@ -999,7 +1068,7 @@ class ReturnController extends GetxController {
       String formattedDate = DateFormat("yyyy-MM-dd").format(parsedDate);
       log(formattedDate);
       var masterData = {
-        DBHelper.companyDocMaster: homeCon.user.value.company,
+        DBHelper.companyDocMaster: selectedCompany.value?.companyId,
         DBHelper.custNumDocMaster: selectedCustomer.value.custId,
         DBHelper.custNameDocMaster: selectedCustomer.value.custName,
         DBHelper.docNumDocMaster: docNumber.value,
@@ -1037,7 +1106,7 @@ class ReturnController extends GetxController {
           where:
               '${DBHelper.companyDocMaster} = ? and ${DBHelper.docNumDocMaster} = ? and ${DBHelper.docTypeDocMaster} = ?',
           whereArgs: [
-            homeCon.user.value.company,
+            selectedCompany.value?.companyId,
             "${selectedCustomer.value.custId}${docNumber.value}",
             'R'
           ]);
@@ -1047,7 +1116,7 @@ class ReturnController extends GetxController {
           where:
               '${DBHelper.companyDocDetail} = ? and ${DBHelper.docNumDocDetail} = ? and ${DBHelper.docTypeDocDetail} = ?',
           whereArgs: [
-            homeCon.user.value.company,
+            selectedCompany.value?.companyId,
             "${selectedCustomer.value.custId}${docNumber.value}",
             'R'
           ]);

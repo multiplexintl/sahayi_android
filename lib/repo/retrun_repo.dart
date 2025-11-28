@@ -7,6 +7,7 @@ import 'package:global_configuration/global_configuration.dart';
 import 'package:sahayi_android/model/return/customer.dart';
 import 'package:http/http.dart' as http;
 import 'package:sahayi_android/model/return/reasons.dart';
+import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 import '../model/invoice/doc_master.dart';
 import '../model/return/part.dart';
@@ -18,8 +19,10 @@ class RetrunRepo {
     return await RetryHelper.retry<Either<String, List<Customer>?>>(
         apiCall: () async {
           final Uri url = Uri.parse(
-              '${_url}Return/Sync_NewCustomer?Company=EPIC01&query=$query');
-          final client = http.Client();
+              '${_url}Return/Sync_NewCustomer?Company=$company&query=$query');
+          // final client = http.Client();
+          final client =
+             await HttpClientHelper().getClient(); // Instead of http.Client()
           log(url.toString());
           final response = await client.get(url);
           log("Response Code: ${response.statusCode}");
@@ -49,7 +52,9 @@ class RetrunRepo {
     return await RetryHelper.retry<Either<String, List<Reasons>?>>(
         apiCall: () async {
           final Uri url = Uri.parse('${_url}Return/GetReason?query');
-          final client = http.Client();
+          // final client = http.Client();
+          final client =
+             await HttpClientHelper().getClient(); // Instead of http.Client()
           log(url.toString());
           final response = await client.get(url);
           log("Response Code: ${response.statusCode}");
@@ -75,14 +80,15 @@ class RetrunRepo {
             result.fold((l) => l == "Retry failed", (_) => false));
   }
 
-  Future<Either<String, Part?>> getPart({
-    required String company,
+  Future<Either<String, List<Part>?>> getPart({
     required String query,
   }) async {
-    return await RetryHelper.retry<Either<String, Part?>>(
+    return await RetryHelper.retry<Either<String, List<Part>?>>(
         apiCall: () async {
           final Uri url = Uri.parse('${_url}Return/GetPartData?barcode=$query');
-          final client = http.Client();
+          // final client = http.Client();
+          final client =
+             await HttpClientHelper().getClient(); // Instead of http.Client()
           log(url.toString());
           final response = await client.get(url);
           log("Response Code: ${response.statusCode}");
@@ -95,7 +101,7 @@ class RetrunRepo {
             } else {
               var report =
                   responseBody.map((json) => Part.fromJson(json)).toList();
-              return Right(report[0]);
+              return Right(report);
             }
           } else {
             return Left("${response.statusCode} : ${response.body}");
@@ -118,7 +124,8 @@ class RetrunRepo {
         final Uri url = Uri.parse(
             '${_url}Operational/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
         log(url.toString());
-        final client = http.Client();
+        // final client = http.Client();
+        final client =await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get invoice: ${response.statusCode}");
         if (response.statusCode == 200) {
@@ -141,7 +148,8 @@ class RetrunRepo {
       apiCall: () async {
         final Uri url = Uri.parse('${_url}Return/CreateReturn');
         var body = master;
-        final client = http.Client();
+        // final client = http.Client();
+        final client =await HttpClientHelper().getClient(); // Instead of http.Client()
         log(url.toString());
         final response = await client.post(url,
             headers: {

@@ -24,6 +24,7 @@ class ReportViewPage extends StatelessWidget {
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         appBar: CustomWidget.customAppBar("Report", back: true),
+        // appBar: ReportAppBar(controller: con),
         backgroundColor: CustomColors.scaffoldColor,
         bottomNavigationBar: BottomBarWidget(),
         body: Column(
@@ -34,7 +35,7 @@ class ReportViewPage extends StatelessWidget {
               padding: const EdgeInsets.only(left: 12, top: 12, bottom: 0),
               child: Text(
                 "Employee : ${user.empName}",
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: Theme.of(context).textTheme.labelLarge,
               ),
             ),
             Row(
@@ -46,7 +47,10 @@ class ReportViewPage extends StatelessWidget {
                       onChanged: (val) {
                         con.fetchAll.value = val!;
                       },
-                      title: Text("Fetch all companies reports"),
+                      title: Text(
+                        "Fetch all company reports",
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
                       controlAffinity: ListTileControlAffinity.leading,
                       visualDensity:
                           VisualDensity(horizontal: -4, vertical: -4),
@@ -54,27 +58,36 @@ class ReportViewPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Padding(
-                //   padding: const EdgeInsets.only(right: 12),
-                //   child: SizedBox(
-                //     height: 38,
-                //     width: 160,
-                //     child: Obx(() => TextField(
-                //           controller: con.docNumController.value,
-                //           keyboardType: TextInputType.number,
-                //           decoration: CustomWidget()
-                //               .inputDecoration(context: context, radius: 10)
-                //               .copyWith(
-                //                 labelText: "Doc Num",
-                //                 contentPadding: EdgeInsets.only(left: 12),
-                //               ),
-                //         )),
-                //   ),
-                // ),
+                Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Obx(
+                      () => Visibility(
+                        visible: con.reports.isNotEmpty,
+                        child: SizedBox(
+                          height: 38,
+                          width: 160,
+                          child: TextField(
+                            controller: con.searchController,
+                            decoration: CustomWidget()
+                                .inputDecoration(context: context, radius: 10)
+                                .copyWith(
+                                  labelText: "Search",
+                                  contentPadding: EdgeInsets.only(left: 12),
+                                ),
+                            enabled: con.reports.isNotEmpty,
+                            onChanged: con.reports.isNotEmpty
+                                ? (query) {
+                                    con.filterReports(query);
+                                  }
+                                : null,
+                          ),
+                        ),
+                      ),
+                    )),
               ],
             ),
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.only(left: 8, right: 8, bottom: 5),
               child: Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -104,7 +117,7 @@ class ReportViewPage extends StatelessWidget {
                               letterSpacing: 1.2,
                             )),
                       ),
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: Theme.of(context).textTheme.labelSmall,
                       menuWidth: 200,
                       value: con.selectedType.value,
                       items: con.reportTypes.map((element) {
@@ -114,11 +127,13 @@ class ReportViewPage extends StatelessWidget {
                               .toString()), // Correctly extracts a value
                         );
                       }).toList(),
-                      onChanged: (map) {
-                        if (map != null) {
-                          con.selectedType.value = map;
-                        }
-                      },
+                      onChanged: con.isLoading.value
+                          ? null
+                          : (map) {
+                              if (map != null) {
+                                con.selectedType.value = map;
+                              }
+                            },
                     ),
                   ),
                 ),
@@ -180,37 +195,41 @@ class ReportViewPage extends StatelessWidget {
                     child: Obx(() => TextFormField(
                           readOnly: true,
                           controller: con.fromDateController.value,
-                          onTap: () {
-                            DateTime today = DateTime.now();
-                            showYearMonthPicker(
-                              minimumYear: DateTime.now().year - 32,
-                              maximumYear: DateTime.now().year,
-                              maximumDate: today,
-                              minimumDate: DateTime(
-                                  today.year - 32, today.month, today.day),
-                              dateNeeded: true,
-                              initialDateTime: con
-                                      .fromDateController.value.text.isNotEmpty
-                                  ? DateFormat("dd-MM-yyyy")
-                                      .parse(con.fromDateController.value.text)
-                                  : null,
-                              onTapCancel: () {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                con.updateDate(date: null, isFrom: true);
-                                Get.back();
-                              },
-                              onTapSubmit: () {
-                                if (con.fromDateController.value.text.isEmpty) {
-                                  con.updateDate(
-                                      date: DateTime.now(), isFrom: true);
-                                }
-                                Get.back();
-                              },
-                              onDateTimeChanged: (date) {
-                                con.updateDate(date: date, isFrom: true);
-                              },
-                            );
-                          },
+                          onTap: con.isLoading.value
+                              ? null
+                              : () {
+                                  DateTime today = DateTime.now();
+                                  showYearMonthPicker(
+                                    minimumYear: DateTime.now().year - 32,
+                                    maximumYear: DateTime.now().year,
+                                    maximumDate: today,
+                                    minimumDate: DateTime(today.year - 32,
+                                        today.month, today.day),
+                                    dateNeeded: true,
+                                    initialDateTime: con.fromDateController
+                                            .value.text.isNotEmpty
+                                        ? DateFormat("dd-MM-yyyy").parse(
+                                            con.fromDateController.value.text)
+                                        : null,
+                                    onTapCancel: () {
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
+                                      con.updateDate(date: null, isFrom: true);
+                                      Get.back();
+                                    },
+                                    onTapSubmit: () {
+                                      if (con.fromDateController.value.text
+                                          .isEmpty) {
+                                        con.updateDate(
+                                            date: DateTime.now(), isFrom: true);
+                                      }
+                                      Get.back();
+                                    },
+                                    onDateTimeChanged: (date) {
+                                      con.updateDate(date: date, isFrom: true);
+                                    },
+                                  );
+                                },
                           decoration: CustomWidget()
                               .inputDecoration(
                                 context: context,
@@ -228,37 +247,42 @@ class ReportViewPage extends StatelessWidget {
                     child: Obx(() => TextFormField(
                           controller: con.toDateController.value,
                           readOnly: true,
-                          onTap: () {
-                            DateTime today = DateTime.now();
-                            showYearMonthPicker(
-                              minimumYear: DateTime.now().year - 32,
-                              maximumYear: DateTime.now().year,
-                              maximumDate: today,
-                              minimumDate: DateTime(
-                                  today.year - 32, today.month, today.day),
-                              dateNeeded: true,
-                              initialDateTime: con
-                                      .toDateController.value.text.isNotEmpty
-                                  ? DateFormat("dd-MM-yyyy")
-                                      .parse(con.toDateController.value.text)
-                                  : null,
-                              onTapCancel: () {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                con.updateDate(date: null, isFrom: false);
-                                Get.back();
-                              },
-                              onTapSubmit: () {
-                                if (con.toDateController.value.text.isEmpty) {
-                                  con.updateDate(
-                                      date: DateTime.now(), isFrom: false);
-                                }
-                                Get.back();
-                              },
-                              onDateTimeChanged: (date) {
-                                con.updateDate(date: date, isFrom: false);
-                              },
-                            );
-                          },
+                          onTap: con.isLoading.value
+                              ? null
+                              : () {
+                                  DateTime today = DateTime.now();
+                                  showYearMonthPicker(
+                                    minimumYear: DateTime.now().year - 32,
+                                    maximumYear: DateTime.now().year,
+                                    maximumDate: today,
+                                    minimumDate: DateTime(today.year - 32,
+                                        today.month, today.day),
+                                    dateNeeded: true,
+                                    initialDateTime: con.toDateController.value
+                                            .text.isNotEmpty
+                                        ? DateFormat("dd-MM-yyyy").parse(
+                                            con.toDateController.value.text)
+                                        : null,
+                                    onTapCancel: () {
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
+                                      con.updateDate(date: null, isFrom: false);
+                                      Get.back();
+                                    },
+                                    onTapSubmit: () {
+                                      if (con.toDateController.value.text
+                                          .isEmpty) {
+                                        con.updateDate(
+                                            date: DateTime.now(),
+                                            isFrom: false);
+                                      }
+                                      Get.back();
+                                    },
+                                    onDateTimeChanged: (date) {
+                                      con.updateDate(date: date, isFrom: false);
+                                    },
+                                  );
+                                },
                           decoration: CustomWidget()
                               .inputDecoration(
                                 context: context,
@@ -311,9 +335,9 @@ class ReportViewPage extends StatelessWidget {
             Expanded(
               child: Obx(() => ListView.builder(
                   shrinkWrap: true,
-                  itemCount: con.reports.length,
+                  itemCount: con.filteredReports.length,
                   itemBuilder: (context, index) {
-                    var item = con.reports[index];
+                    var item = con.filteredReports[index];
                     return GestureDetector(
                       onTap: () {
                         con.selectReport(item);

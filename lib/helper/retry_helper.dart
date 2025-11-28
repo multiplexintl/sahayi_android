@@ -26,7 +26,7 @@ class RetryHelper {
 
         log("Retry condition met. Retrying...");
       } catch (e) {
-        log("Error on attempt $attempt: ${e.toString()}");
+        log(e.toString());
       }
 
       // Delay before retrying

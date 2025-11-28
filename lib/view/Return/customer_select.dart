@@ -12,6 +12,7 @@ import 'package:sahayi_android/widgets/button.dart';
 
 import '../../helper/custom_colors.dart';
 import '../../helper/custom_widget.dart';
+import '../../model/company.dart';
 import '../../model/user.dart';
 import '../../widgets/bottom_bar.dart';
 import '../../widgets/drop_down.dart';
@@ -34,104 +35,133 @@ class CustomerSelectScreen extends StatelessWidget {
           logout: null,
           back: true,
         ),
+        resizeToAvoidBottomInset: false,
         body: Padding(
           padding: const EdgeInsets.only(left: 15, right: 15, top: 20),
           child: Column(
             children: [
+              Obx(
+                () => CustomDropdown<Company>(
+                  items: con.companyList,
+                  onChanged: con.syncIsLoading.value
+                      ? null
+                      : (value) {
+                          con.selectComapny(value);
+                        },
+                  selectedItem: con.selectedCompany.value,
+                  height: 53,
+                  width: context.width,
+                  isDisabled: con.syncIsLoading.value,
+                  getItemLabel: (company) => company?.companyName ?? '',
+                  label: "Select Company",
+                ),
+              ),
+              SizedBox(height: 10),
               SizedBox(
                 height: 60,
-                child: DropDownSearchField<Customer>(
-                  displayAllSuggestionWhenTap: true,
-                  isMultiSelectDropdown: false,
-                  debounceDuration: Duration(milliseconds: 500),
-                  textFieldConfiguration: TextFieldConfiguration(
-                    controller: con.custController,
-                    keyboardType: TextInputType.name,
-                    style: Theme.of(context).textTheme.labelLarge,
-                    decoration: CustomWidget().inputDecoration(
-                      context: context,
-                      labelText: "Customer",
-                      radius: 16,
+                child: Obx(
+                  () => DropDownSearchField<Customer>(
+                    displayAllSuggestionWhenTap: true,
+                    isMultiSelectDropdown: false,
+                    debounceDuration: Duration(milliseconds: 500),
+                    textFieldConfiguration: TextFieldConfiguration(
+                      controller: con.custController,
+                      keyboardType: TextInputType.name,
+                      style: Theme.of(context).textTheme.labelLarge,
+                      enabled: con.selectedCompany.value != null,
+                      decoration: CustomWidget().inputDecoration(
+                        context: context,
+                        labelText: "Customer",
+                        radius: 16,
+                      ),
                     ),
+                    hideOnEmpty: true,
+                    hideOnLoading: false,
+                    suggestionsCallback: (pattern) async {
+                      return await con.getSuggestions(pattern);
+                    },
+                    itemBuilder: (context, suggestion) {
+                      return ListTile(
+                        leading: Icon(Icons.business),
+                        title: Text(suggestion.custId!),
+                        subtitle: Text('${suggestion.custName}'),
+                      );
+                    },
+                    onSuggestionSelected: (suggestion) {
+                      con.onCustomerSelected(suggestion);
+                    },
                   ),
-                  hideOnEmpty: true,
-                  hideOnLoading: false,
-                  suggestionsCallback: (pattern) async {
-                    return await con.getSuggestions(pattern);
-                  },
-                  itemBuilder: (context, suggestion) {
-                    return ListTile(
-                      leading: Icon(Icons.business),
-                      title: Text(suggestion.custId!),
-                      subtitle: Text('${suggestion.custName}'),
-                    );
-                  },
-                  onSuggestionSelected: (suggestion) {
-                    con.onCustomerSelected(suggestion);
-                  },
                 ),
               ),
               SizedBox(
                 height: 60,
-                child: TextField(
-                  controller: con.docNumController,
-                  decoration: CustomWidget().inputDecoration(
-                      context: context, labelText: "Doc Number", radius: 16),
+                child: Obx(
+                  () => TextField(
+                    controller: con.docNumController,
+                    enabled: con.selectedCompany.value != null,
+                    decoration: CustomWidget().inputDecoration(
+                        context: context, labelText: "Doc Number", radius: 16),
+                  ),
                 ),
               ),
               SizedBox(height: 5),
               SizedBox(
                 height: 60,
-                child: TextField(
-                  controller: con.docDateController,
-                  readOnly: true,
-                  onTap: () {
-                    DateTime today = DateTime.now();
+                child: Obx(
+                  () => TextField(
+                    controller: con.docDateController,
+                    readOnly: true,
+                    enabled: con.selectedCompany.value != null,
+                    onTap: () {
+                      DateTime today = DateTime.now();
 
-                    DateTime maxAllowedDate =
-                        DateTime(today.year, today.month, today.day);
-                    log(maxAllowedDate.toString());
+                      DateTime maxAllowedDate =
+                          DateTime(today.year, today.month, today.day);
+                      log(maxAllowedDate.toString());
 
-                    showYearMonthPicker(
-                      minimumYear: DateTime.now().year -
-                          2, // Allow dates up to 100 years ago
-                      maximumYear: DateTime.now().year, // 12 years or older+
-                      maximumDate: maxAllowedDate,
-                      minimumDate:
-                          DateTime(today.year - 2, today.month, today.day),
-                      dateNeeded: true,
-                      initialDateTime:
-                          con.docDateController.value.text.isNotEmpty
-                              ? DateFormat("dd-MM-yyyy")
-                                  .parse(con.docDateController.value.text)
-                              : maxAllowedDate,
-                      onTapCancel: () {
-                        con.docDateController.clear();
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        Get.back();
-                      },
-                      onTapSubmit: () {
-                        log(con.docDateController.value.text);
-                        if (con.docDateController.value.text.isEmpty) {
+                      showYearMonthPicker(
+                        minimumYear: DateTime.now().year -
+                            2, // Allow dates up to 100 years ago
+                        maximumYear: DateTime.now().year, // 12 years or older+
+                        maximumDate: maxAllowedDate,
+                        minimumDate:
+                            DateTime(today.year - 2, today.month, today.day),
+                        dateNeeded: true,
+                        initialDateTime:
+                            con.docDateController.value.text.isNotEmpty
+                                ? DateFormat("dd-MM-yyyy")
+                                    .parse(con.docDateController.value.text)
+                                : maxAllowedDate,
+                        onTapCancel: () {
+                          con.docDateController.clear();
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          Get.back();
+                        },
+                        onTapSubmit: () {
+                          log(con.docDateController.value.text);
+                          if (con.docDateController.value.text.isEmpty) {
+                            String formattedDate =
+                                DateFormat("dd-MM-yyyy").format(DateTime.now());
+                            con.docDateController.text = formattedDate;
+                            con.docDate.value = formattedDate;
+                          }
+                          Get.back();
+                        },
+                        onDateTimeChanged: (date) {
+                          log(date.toString());
                           String formattedDate =
-                              DateFormat("dd-MM-yyyy").format(DateTime.now());
+                              DateFormat("dd-MM-yyyy").format(date);
                           con.docDateController.text = formattedDate;
                           con.docDate.value = formattedDate;
-                        }
-                        Get.back();
-                      },
-                      onDateTimeChanged: (date) {
-                        log(date.toString());
-                        String formattedDate =
-                            DateFormat("dd-MM-yyyy").format(date);
-                        con.docDateController.text = formattedDate;
-                        con.docDate.value = formattedDate;
-                        con.update();
-                      },
-                    );
-                  },
-                  decoration: CustomWidget().inputDecoration(
-                      context: context, labelText: "Document Date", radius: 16),
+                          con.update();
+                        },
+                      );
+                    },
+                    decoration: CustomWidget().inputDecoration(
+                        context: context,
+                        labelText: "Document Date",
+                        radius: 16),
+                  ),
                 ),
               ),
               SizedBox(height: 5),
@@ -146,7 +176,8 @@ class CustomerSelectScreen extends StatelessWidget {
                   selectedItem: con.selectedDriver.value,
                   height: 53,
                   width: context.width,
-                  isDisabled: con.selectIsLoading.value,
+                  isDisabled: con.selectIsLoading.value ||
+                      con.selectedCompany.value == null,
                   getItemLabel: (driver) => driver?.name ?? '',
                   label: "Select Driver/Helper",
                 ),

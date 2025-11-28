@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/release
 
 .codegpt
+
+# Assets to ignore
+assets/cfg/config.json
+assets/cert/PositiveSSL_Wildcard_multiroute.ae.pem

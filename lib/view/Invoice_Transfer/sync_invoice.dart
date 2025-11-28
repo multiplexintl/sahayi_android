@@ -117,16 +117,16 @@ class SyncInvoiceScreen extends StatelessWidget {
               //     displayAllSuggestionWhenTap: true,
               //     isMultiSelectDropdown: false,
               //     debounceDuration: Duration(milliseconds: 500),
-              //     textFieldConfiguration: TextFieldConfiguration(
-              //       controller: con.pickerController,
-              //       keyboardType: TextInputType.name,
-              //       style: Theme.of(context).textTheme.labelLarge,
-              //       decoration: CustomWidget().inputDecoration(
-              //         context: context,
-              //         labelText: "Picker",
-              //         radius: 16,
-              //       ),
-              //     ),
+              // textFieldConfiguration: TextFieldConfiguration(
+              //   controller: con.pickerController,
+              //   keyboardType: TextInputType.name,
+              //   style: Theme.of(context).textTheme.labelLarge,
+              //   decoration: CustomWidget().inputDecoration(
+              //     context: context,
+              //     labelText: "Picker",
+              //     radius: 16,
+              //   ),
+              // ),
               //     hideOnEmpty: true,
               //     hideOnLoading: false,
               //     suggestionsCallback: (pattern) async {
