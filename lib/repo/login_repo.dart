@@ -3,8 +3,6 @@ import 'dart:developer';
 
 import 'package:dartz/dartz.dart';
 import 'package:global_configuration/global_configuration.dart';
-import 'package:http/http.dart' as http;
-
 import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 import '../model/user.dart';
@@ -18,8 +16,7 @@ class LoginRepo {
       apiCall: () async {
         final Uri url =
             Uri.parse('${_url}Login/GetUsersLogin?UserID=$empId&Pwd=$pwd');
-        final client = http.Client();
-        // final client = await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client = await HttpClientHelper().getClient();
 
         final response = await client.get(url);
         log("Response Code: ${response.statusCode}");

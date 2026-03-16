@@ -24,7 +24,8 @@ class HomeRepo {
         final Uri url = Uri.parse(
             '${_url}Operational/Sync_Document?Company=$company&DocNum=$docNum&DocType=$docType');
         // final client = http.Client();
-        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client =
+            await HttpClientHelper().getClient(); // Instead of http.Client()
         log(url.toString());
         try {
           final response = await client.get(url);
@@ -46,8 +47,6 @@ class HomeRepo {
         } catch (e) {
           log("Error in syncInvoice: $e");
           return Left("An error occurred: $e");
-        } finally {
-          client.close();
         }
       },
       defaultValue: const Left("An error occurred during the sync process."),
@@ -74,7 +73,8 @@ class HomeRepo {
             '${_url}Return/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
         log(url.toString());
         // final client = http.Client();
-        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client =
+            await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get Doc: ${response.statusCode}");
         if (response.statusCode == 200) {
@@ -85,6 +85,7 @@ class HomeRepo {
               jsonList.map((json) => DocMaster.fromJson(json)).toList();
           return invoices;
         } else {
+          log(response.body.toString());
           return [];
         }
       },
@@ -107,7 +108,8 @@ class HomeRepo {
         final Uri url = Uri.parse(
             '${_url}Operational/UpdateDocument?UserID=$userId&DocNum=$docNum&DocType=$docType&Company=$company&PickedBy=$pickedBy');
         // final client = http.Client();
-        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client =
+            await HttpClientHelper().getClient(); // Instead of http.Client()
         log(url.toString());
         final response = await client.post(url);
         log("Response Code Sync DocMaster: ${response.statusCode}");
@@ -129,7 +131,8 @@ class HomeRepo {
         final Uri url = Uri.parse('${_url}Operational/GetCompanyMaster');
         log(url.toString());
         // final client = http.Client();
-        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client =
+            await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get invoice: ${response.statusCode}");
         if (response.statusCode == 200) {
@@ -155,7 +158,8 @@ class HomeRepo {
         final Uri url = Uri.parse('${_url}Return/GetUserList?query=');
         log(url.toString());
         // final client = http.Client();
-        final client = await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client =
+            await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get invoice: ${response.statusCode}");
         if (response.statusCode == 200) {

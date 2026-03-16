@@ -1,91 +1,81 @@
+import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:http/http.dart' as http;
-import 'package:sahayi_android/controller/inv_trnf_controller.dart';
-import 'package:sahayi_android/model/user.dart';
 
 class ConnectivityController extends GetxController {
-  var isInternetConnected =
-      false.obs; // True only if internet and API both succeed
-  var lastApiCallSuccess = false.obs;
+  var isInternetConnected = false.obs;
 
   final Connectivity _connectivity = Connectivity();
-
-  var user = User();
+  StreamSubscription? _subscription;
 
   @override
-  void onInit() async {
+  void onInit() {
     super.onInit();
-    user = InvoiceOrTransferController().user.value;
-    await _monitorConnectivity();
+    _init();
   }
 
-  /// Monitor real-time internet connectivity and API status
-  Future<void> _monitorConnectivity() async {
-    _connectivity.onConnectivityChanged.listen((results) async {
-      // Check if any connection is available in the list
-      final hasInternet = results.isNotEmpty &&
-          results.any((result) => result != ConnectivityResult.none);
+  @override
+  void onClose() {
+    _subscription?.cancel();
+    super.onClose();
+  }
 
-      // Check both internet and API success before setting the flag
-      if (hasInternet) {
-        bool apiCheck = await _testApiCall();
-        isInternetConnected.value = apiCheck;
+  Future<void> _init() async {
+    // Check current state immediately
+    isInternetConnected.value = await _hasInternet();
+
+    // Listen for network changes and re-verify
+    _subscription = _connectivity.onConnectivityChanged.listen((results) async {
+      final hasNetwork = results.isNotEmpty &&
+          results.any((r) => r != ConnectivityResult.none);
+
+      if (hasNetwork) {
+        isInternetConnected.value = await _hasInternet();
       } else {
         isInternetConnected.value = false;
       }
 
-      // Show feedback if disconnected
       if (!isInternetConnected.value) {
-        Get.snackbar("No Internet", "You are offline or API failed.",
-            backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar(
+          "No Internet",
+          "You are offline. Please check your connection.",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       }
     });
   }
 
-  /// Check API success along with connectivity
-  Future<bool> _testApiCall() async {
+  /// Verifies actual internet access by doing a DNS lookup on a reliable host.
+  Future<bool> _hasInternet() async {
     try {
-      final response = await http
-          .get(Uri.parse('https://jsonplaceholder.typicode.com/posts/1'));
-      return response.statusCode == 200;
-    } catch (e) {
-      log("API Test Failed: $e");
+      final result = await InternetAddress.lookup('google.com')
+          .timeout(const Duration(seconds: 5));
+      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+    } on SocketException catch (e) {
+      log('No internet (SocketException): $e');
+      return false;
+    } on TimeoutException catch (e) {
+      log('No internet (Timeout): $e');
       return false;
     }
   }
 
-  /// Generic API Call Method with Internet + API Check
-  Future<bool> makeApiCall({required String url}) async {
+  /// Call this before any network operation to guard against offline state.
+  Future<bool> checkConnectivity() async {
+    isInternetConnected.value = await _hasInternet();
     if (!isInternetConnected.value) {
-      Get.snackbar("No Internet", "Please check your connection.",
-          backgroundColor: Colors.red, colorText: Colors.white);
-      return false;
+      Get.snackbar(
+        "No Internet",
+        "Please check your connection.",
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
-
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        lastApiCallSuccess.value = true;
-        isInternetConnected.value =
-            true; // Confirm API success and connectivity
-        return true;
-      } else {
-        lastApiCallSuccess.value = false;
-        isInternetConnected.value = false;
-        Get.snackbar("API Error", "Failed to fetch data from the server.",
-            backgroundColor: Colors.orange, colorText: Colors.white);
-        return false;
-      }
-    } catch (e) {
-      lastApiCallSuccess.value = false;
-      isInternetConnected.value = false;
-      Get.snackbar("Error", "An error occurred: $e",
-          backgroundColor: Colors.red, colorText: Colors.white);
-      return false;
-    }
+    return isInternetConnected.value;
   }
 }

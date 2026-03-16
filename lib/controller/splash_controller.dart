@@ -8,6 +8,8 @@ import 'package:sahayi_android/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../model/user.dart';
+import '../service/update_service.dart';
+import '../view/update/update_dialog.dart';
 
 class SplashController extends GetxController {
   static const String _userKey = 'user'; // Key for storing user data
@@ -19,12 +21,27 @@ class SplashController extends GetxController {
     super.onInit();
     await getStoragePermission().then((granted) async {
       if (granted) {
+        await _checkForUpdate();
         await getCurrentUser();
       } else {
         log("Permission Denied");
         Get.snackbar("Permission Required", "Storage permission is required.");
       }
     });
+  }
+
+  Future<void> _checkForUpdate() async {
+    try {
+      final updateInfo = await UpdateService().checkForUpdate();
+      if (updateInfo != null) {
+        final context = Get.context;
+        if (context != null) {
+          await UpdateDialog.show(context, updateInfo);
+        }
+      }
+    } catch (e) {
+      log('Update check skipped: $e');
+    }
   }
 
   Future<bool> getStoragePermission() async {

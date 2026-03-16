@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust the system/device CAs -->
+            <certificates src="system" />
+            <!-- Add Sectigo Public Server Authentication Root R46 (newer root not yet in all Android trust stores) -->
+            <certificates src="@raw/sectigo_root_r46" />
+            <!-- Add the intermediate CA to help with chain building -->
+            <certificates src="@raw/sectigo_intermediate_dv_r36" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
