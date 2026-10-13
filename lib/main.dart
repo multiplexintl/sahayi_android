@@ -5,10 +5,13 @@ import 'package:global_configuration/global_configuration.dart';
 
 import 'controller/splash_controller.dart';
 import 'routes.dart';
+import 'service/app_logger.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await GlobalConfiguration().loadFromAsset("config");
+  await AppLogger.init();
+  AppLogger.info('AppStart', 'App started');
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]).then((value) => runApp(const MyApp()));
