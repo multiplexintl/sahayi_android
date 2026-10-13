@@ -221,7 +221,16 @@ class ReportController extends GetxController {
           mapAndSortReportsByScanTime(allReports, homeCon.companyList);
       update();
       AppLogger.info('ReportResult', '${allReports.length} rows');
-      log(reports[0].toString());
+      if (reports.isEmpty) {
+        CustomWidget.customSnackBar(
+          title: "No Reports",
+          message: "No reports found for the selected filters.",
+          backgroundColor: Colors.orange,
+          textColor: Colors.white,
+        );
+        return;
+      }
+      log(reports.first.toString());
 
       CustomWidget.customSnackBar(
         title: "Success",

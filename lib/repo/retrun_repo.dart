@@ -11,6 +11,7 @@ import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 import '../model/invoice/doc_master.dart';
 import '../model/return/part.dart';
+import 'dart:async';
 
 class RetrunRepo {
   final String _url = GlobalConfiguration().getValue('api_base_url');
@@ -135,12 +136,14 @@ class RetrunRepo {
               jsonList.map((json) => DocMaster.fromJson(json)).toList();
           return invoices;
         } else {
-          return [];
+          throw HttpException('DocumentGetRecords returned HTTP ${response.statusCode}');
         }
       },
       defaultValue: [],
       maxRetries: 3,
-      shouldRetry: (result) => result == [],
+      // Callers must know when the server could not be checked: an empty list
+      // means "new return", so returning [] on failure would be wrong.
+      throwWhenAllFail: true,
     );
   }
 
@@ -168,6 +171,9 @@ class RetrunRepo {
       defaultValue: false,
       maxRetries: 3,
       shouldRetry: (result) => result == false,
+      // After a timeout the server may already have saved the return; sending
+      // it again would fail or, after a manual retry, duplicate lines.
+      retryOnError: (e) => e is! TimeoutException,
     );
   }
 }

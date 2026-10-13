@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
 import 'logging_http_client.dart';
+import 'timeout_http_client.dart';
 
 class HttpClientHelper {
   static http.Client? _client;
@@ -20,7 +21,12 @@ class HttpClientHelper {
         await rootBundle.load('assets/cert/full_chain_multiroute.ae.pem');
     context.setTrustedCertificatesBytes(certData.buffer.asUint8List());
 
-    _client = LoggingClient(IOClient(HttpClient(context: context)));
+    // Give up connecting after 15s (e.g. server unreachable).
+    final httpClient = HttpClient(context: context)
+      ..connectionTimeout = const Duration(seconds: 15);
+
+    // Logging wraps the time limits so timeouts are logged too.
+    _client = LoggingClient(TimeoutClient(IOClient(httpClient)));
     return _client!;
   }
 }

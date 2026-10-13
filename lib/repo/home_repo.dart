@@ -10,6 +10,7 @@ import 'package:sahayi_android/model/pickers/pickers.dart';
 import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 import '../model/invoice/doc_master.dart';
+import 'dart:io';
 
 class HomeRepo {
   final String _url = GlobalConfiguration().getValue('api_base_url');
@@ -86,12 +87,12 @@ class HomeRepo {
           return invoices;
         } else {
           log(response.body.toString());
-          return [];
+          // Throw so RetryHelper retries server errors (an empty list is a valid answer).
+          throw HttpException('DocumentGetRecords returned HTTP ${response.statusCode}');
         }
       },
       defaultValue: [],
       maxRetries: 3,
-      shouldRetry: (result) => result == [],
     );
   }
 
@@ -143,12 +144,11 @@ class HomeRepo {
               jsonList.map((json) => Company.fromJson(json)).toList();
           return invoices;
         } else {
-          return [];
+          throw HttpException('GetCompanyMaster returned HTTP ${response.statusCode}');
         }
       },
       defaultValue: [],
       maxRetries: 3,
-      shouldRetry: (result) => result == [],
     );
   }
 
@@ -170,12 +170,11 @@ class HomeRepo {
               jsonList.map((json) => Pickers.fromJson(json)).toList();
           return invoices;
         } else {
-          return [];
+          throw HttpException('GetUserList returned HTTP ${response.statusCode}');
         }
       },
       defaultValue: [],
       maxRetries: 3,
-      shouldRetry: (result) => result == [],
     );
   }
 }
