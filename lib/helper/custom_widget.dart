@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controller/connectivity_controller.dart';
+import '../service/app_logger.dart';
 
 class CustomWidget {
   InputDecoration inputDecoration(
@@ -123,6 +124,12 @@ class CustomWidget {
       Color? textColor,
       Color? backgroundColor,
       int? duration}) async {
+    // Record exactly what the user was shown. Red = problem, otherwise info.
+    if (backgroundColor == Colors.red) {
+      AppLogger.warn('Popup', '$title: $message');
+    } else {
+      AppLogger.info('Popup', '$title: $message');
+    }
     Get.closeAllSnackbars();
     return Get.snackbar(
       title, message,
@@ -174,6 +181,7 @@ class CustomWidget {
     required void Function()? onPressed,
     void Function()? onPressedBack,
   }) {
+    AppLogger.info('Dialog', '$title: $subTitle');
     return Get.dialog(AlertDialog(
       title: Center(
           child: Text(

@@ -15,6 +15,7 @@ import 'package:sahayi_android/model/user.dart';
 import 'package:sahayi_android/repo/home_repo.dart';
 import 'package:sahayi_android/routes.dart';
 import 'package:vibration/vibration.dart';
+import '../service/app_logger.dart';
 
 class InvoiceOrTransferController extends GetxController {
   var date = RxString('');
@@ -95,6 +96,7 @@ class InvoiceOrTransferController extends GetxController {
 
   void selectComapny(Company? company) {
     selectedCompany.value = company;
+    AppLogger.setCompany(company?.companyId);
     update();
   }
 

@@ -1,5 +1,7 @@
 import 'dart:developer';
 
+import '../service/app_logger.dart';
+
 class RetryHelper {
   /// Retry logic for API calls
   static Future<T> retry<T>({
@@ -25,8 +27,12 @@ class RetryHelper {
         }
 
         log("Retry condition met. Retrying...");
-      } catch (e) {
+        AppLogger.warn('Retry',
+            'Attempt $attempt of $maxRetries returned an unwanted result: $result');
+      } catch (e, st) {
         log(e.toString());
+        AppLogger.warn('Retry', 'Attempt $attempt of $maxRetries threw: $e',
+            details: 'Stack: $st');
       }
 
       // Delay before retrying
@@ -36,6 +42,8 @@ class RetryHelper {
     }
 
     log("All retries failed. Returning default value.");
+    AppLogger.error('RetryGaveUp',
+        'All $maxRetries attempts failed. Returning default: $defaultValue');
     return defaultValue; // Return fallback value if all retries fail
   }
 }

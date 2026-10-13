@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+import 'logging_http_client.dart';
+
 class HttpClientHelper {
   static http.Client? _client;
 
@@ -18,7 +20,7 @@ class HttpClientHelper {
         await rootBundle.load('assets/cert/full_chain_multiroute.ae.pem');
     context.setTrustedCertificatesBytes(certData.buffer.asUint8List());
 
-    _client = IOClient(HttpClient(context: context));
+    _client = LoggingClient(IOClient(HttpClient(context: context)));
     return _client!;
   }
 }

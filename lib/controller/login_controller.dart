@@ -10,6 +10,7 @@ import 'package:sahayi_android/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../model/user.dart';
+import '../service/app_logger.dart';
 
 class LoginController extends GetxController {
   TextEditingController idController = TextEditingController();
@@ -46,6 +47,7 @@ class LoginController extends GetxController {
             title: "Error!!", message: error, backgroundColor: Colors.red);
       },
       (user) {
+        AppLogger.setUser(user.empID);
         currentUser = user;
         isLoading.value = false;
         saveUserSession(user).then((val) {

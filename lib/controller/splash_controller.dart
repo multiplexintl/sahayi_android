@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../model/user.dart';
 import '../service/update_service.dart';
 import '../view/update/update_dialog.dart';
+import '../service/app_logger.dart';
 
 class SplashController extends GetxController {
   static const String _userKey = 'user'; // Key for storing user data
@@ -70,6 +71,7 @@ class SplashController extends GetxController {
 
       if (difference < _sessionDuration) {
         currentUser.value = User.fromJson(jsonDecode(userJson));
+        AppLogger.setUser(currentUser.value?.empID);
         log("Auto-logged in as: ${currentUser.value?.empName}");
         Get.offNamed(RouteLinks.home, arguments: currentUser.value);
       } else {

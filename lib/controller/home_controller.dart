@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../model/user.dart';
 import '../routes.dart';
 import 'connectivity_controller.dart';
+import '../service/app_logger.dart';
 
 class HomeController extends GetxController {
   var user = Rx<User>(User());
@@ -31,6 +32,9 @@ class HomeController extends GetxController {
     await prefs.remove(userKey);
     await prefs.remove(sessionKey);
     user.value = User();
+    AppLogger.info('Logout', 'User logged out');
+    AppLogger.setUser(null);
+    AppLogger.setCompany(null);
     log("Session cleared successfully.");
     Get.offNamed(RouteLinks.login);
   }

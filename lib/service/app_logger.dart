@@ -2,7 +2,7 @@ import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,8 +31,10 @@ class AppLogger {
   static String? _userId;
   static String? _company;
   static String? _screen;
+  static String? _deviceSummary;
 
   static const String _installIdKey = 'logInstallId';
+  static AppLifecycleListener? _lifecycle;
 
   /// Call once in main() before runApp. [db] can be injected in tests.
   static Future<void> init({LogDB? db}) async {
@@ -69,14 +71,27 @@ class AppLogger {
       }
       String model = 'unknown';
       try {
-        model = (await DeviceInfoPlugin().androidInfo).model;
+        final android = await DeviceInfoPlugin().androidInfo;
+        model = android.model;
+        _deviceSummary = '${android.manufacturer} ${android.model}, '
+            'Android ${android.version.release} (SDK ${android.version.sdkInt})';
       } catch (_) {}
       // e.g. "EDA52-3f9a1c2b": device model + random ID of this installation
       _deviceId = '$model-$installId';
     } catch (_) {}
   }
 
-  // ---- context setters (used by later steps) ----
+  /// e.g. "Honeywell EDA52, Android 11 (SDK 30)"
+  static String? get deviceSummary => _deviceSummary;
+
+  /// Logs when the app goes to the background, comes back, or is closed.
+  static void watchLifecycle() {
+    _lifecycle ??= AppLifecycleListener(
+      onStateChange: (state) => info('Lifecycle', 'App is now ${state.name}'),
+    );
+  }
+
+  // ---- context setters ----
   static void setUser(String? userId) => _userId = userId;
   static void setCompany(String? company) => _company = company;
   static void setScreen(String? screen) => _screen = screen;

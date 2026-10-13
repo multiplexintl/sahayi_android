@@ -22,6 +22,7 @@ import '../repo/home_repo.dart';
 import '../repo/retrun_repo.dart';
 import '../routes.dart';
 import '../widgets/button.dart';
+import '../service/app_logger.dart';
 
 class ReturnController extends GetxController {
   var custController = TextEditingController();
@@ -89,6 +90,7 @@ class ReturnController extends GetxController {
 
   void selectComapny(Company? company) {
     selectedCompany.value = company;
+    AppLogger.setCompany(company?.companyId);
     update();
   }
 
@@ -224,6 +226,7 @@ class ReturnController extends GetxController {
           return;
         }
         selectedCompany.value = company;
+        AppLogger.setCompany(company.companyId);
 
         fullDocNum = "${item.custID}${item.docNum}";
         selectedCustomer.value.custId = item.custID;
