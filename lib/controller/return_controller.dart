@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:math' hide log;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -210,19 +211,53 @@ class ReturnController extends GetxController {
       if (item != null) {
         log("User selected from Unfinished List: $item");
 
-        selectedCompany.value =
-            companyList.firstWhere((test) => test.companyId == item.company);
+        // Step 1 fix: guard firstWhere — missing company/driver shows clear error
+        final company = companyList.firstWhereOrNull(
+            (test) => test.companyId == item.company);
+        if (company == null) {
+          log("❌ Company not found in list: ${item.company}");
+          CustomWidget.customSnackBar(
+            backgroundColor: Colors.red,
+            title: "Company Not Found",
+            message: "Could not find company for this document. Please restart the app.",
+          );
+          return;
+        }
+        selectedCompany.value = company;
+
         fullDocNum = "${item.custID}${item.docNum}";
         selectedCustomer.value.custId = item.custID;
         selectedCustomer.value.custName = item.custName;
         docNumber.value = item.docNum;
         docDate.value = item.docDate?.toString() ?? DateTime.now().toString();
-        driver.value =
-            driverList.firstWhere((element) => element.id == item.pickedBy);
 
-        // **Fetch API Data**
+        final foundDriver = driverList.firstWhereOrNull(
+            (element) => element.id == item.pickedBy);
+        if (foundDriver == null) {
+          log("❌ Driver not found in list: ${item.pickedBy}");
+          CustomWidget.customSnackBar(
+            backgroundColor: Colors.red,
+            title: "Driver Not Found",
+            message: "Could not find driver for this document. Please reload pickers and try again.",
+          );
+          return;
+        }
+        driver.value = foundDriver;
+
+        // Step 2 fix: separate network error from empty result
         log("STEP 2: Checking API for existing details...");
-        var apiRes = await getReturnDetails();
+        List<DocMaster> apiRes;
+        try {
+          apiRes = await getReturnDetails();
+        } catch (e) {
+          log("❌ Network error fetching return details: $e");
+          CustomWidget.customSnackBar(
+            backgroundColor: Colors.red,
+            title: "Connection Error",
+            message: "Could not connect to server. Check your connection and try again.",
+          );
+          return;
+        }
         log("API Response: ${apiRes.length} items found.");
 
         lastApiSlNo = (apiRes.isNotEmpty &&
@@ -249,7 +284,7 @@ class ReturnController extends GetxController {
             : [];
         log("Found ${localItems.length} items in Local DB.");
 
-        // **Ensure Unique SL No in DB**
+        // Step 4 fix: check result of SlNo DB update
         if (localItems.isNotEmpty && lastApiSlNo > 0) {
           log("Adjusting SL Numbers...");
           int newSlNo = lastApiSlNo + 1;
@@ -257,10 +292,19 @@ class ReturnController extends GetxController {
             localItem.slNo = newSlNo++;
           }
 
-          await _updateDatabase(
+          bool slNoUpdated = await _updateDatabase(
             tableName: DBHelper.docDetail,
             data: localItems.map((e) => e.toDB()).toList(),
           );
+          if (!slNoUpdated) {
+            log("❌ Failed to update SL Numbers in local DB.");
+            CustomWidget.customSnackBar(
+              backgroundColor: Colors.red,
+              title: "Database Error",
+              message: "Failed to update item sequence numbers locally. Try again.",
+            );
+            return;
+          }
           log("Updated SL Numbers in Local DB.");
         }
 
@@ -291,16 +335,28 @@ class ReturnController extends GetxController {
         return;
       }
 
-      docNumber.value = docNumController.text;
+      // Step 6 fix: trim input to avoid phantom duplicates from trailing spaces
+      docNumber.value = docNumController.text.trim();
       docDate.value = docDateController.text;
       fullDocNum = "${selectedCustomer.value.custId}${docNumber.value}";
       driver.value = selectedDriver.value;
 
       log("User entered details: $fullDocNum");
 
-      // **Check API**
+      // Step 2 fix (new-doc path): separate network error from empty result
       log("STEP 5: Checking API for Existing Document...");
-      var apiRes = await getReturnDetails();
+      List<DocMaster> apiRes;
+      try {
+        apiRes = await getReturnDetails();
+      } catch (e) {
+        log("❌ Network error fetching return details: $e");
+        CustomWidget.customSnackBar(
+          backgroundColor: Colors.red,
+          title: "Connection Error",
+          message: "Could not connect to server. Check your connection and try again.",
+        );
+        return;
+      }
       log("API Response: ${apiRes.length} items found.");
 
       lastApiSlNo = (apiRes.isNotEmpty &&
@@ -365,10 +421,11 @@ class ReturnController extends GetxController {
     } catch (e, stackTrace) {
       log("❌ Error in onSubmit: $e");
       log("StackTrace: $stackTrace");
+      // Step 5 fix: show actual error so user/support can act on it
       CustomWidget.customSnackBar(
         backgroundColor: Colors.red,
         title: "Error",
-        message: "Something went wrong. Please try again.",
+        message: "An unexpected error occurred: $e",
       );
     } finally {
       log("Finalizing onSubmit execution...");
@@ -587,7 +644,13 @@ class ReturnController extends GetxController {
       clearPart();
       Get.toNamed(RouteLinks.scanReturns);
     } else {
+      // Step 3 fix: show error so user knows why nothing happened
       log("❌ Failed to Update DocMaster!");
+      CustomWidget.customSnackBar(
+        backgroundColor: Colors.red,
+        title: "Database Error",
+        message: "Failed to save document locally. Please try again.",
+      );
     }
   }
 
@@ -1056,12 +1119,28 @@ class ReturnController extends GetxController {
   Future<bool> finalize() async {
     finalizeIsLoading.value = true;
     try {
-      // see if any updates happened in api first
-      var apiRes = await getReturnDetails();
-      int apiCount = apiRes.isNotEmpty ? apiRes[0].docDetails?.length ?? 0 : 0;
-      log("API Item Count: $apiCount");
+      // Fetch existing API records to determine next SlNo — network errors throw, empty = new doc
+      List<DocMaster> apiRes;
+      try {
+        apiRes = await getReturnDetails();
+      } catch (e) {
+        log("Network error fetching return details: $e");
+        CustomWidget.customSnackBar(
+          title: "Connection Error",
+          message: "Could not connect to server. Check your connection and try again.",
+          backgroundColor: Colors.red,
+        );
+        finalizeIsLoading.value = false;
+        return false;
+      }
+
+      int apiCount = apiRes.isNotEmpty
+          ? (apiRes[0].docDetails?.map((d) => d.slNo ?? 0).fold<int>(0, max) ?? 0)
+          : 0;
+      log("API Max SlNo: $apiCount");
       apiCount += 1;
-      log("API Item Count: $apiCount");
+      log("Next SlNo start: $apiCount");
+
       // Prepare master data
       DateTime parsedDate = DateFormat("dd-MM-yyyy")
           .parse(docDate.value ?? DateTime.now().toString());
@@ -1078,6 +1157,7 @@ class ReturnController extends GetxController {
         DBHelper.scanTimeDocMaster: DateTime.now().toString(),
         DBHelper.pickedByDocMaster: driver.value?.id,
       };
+
       // Prepare detailed data with sequential SlNo
       var toUpload = consolidatedSavedItems.asMap().entries.map((entry) {
         var item = entry.value.toJson();
@@ -1087,20 +1167,26 @@ class ReturnController extends GetxController {
         item[DBHelper.slNoDocDetail] = apiCount++;
         return item;
       }).toList();
+
       // Convert to `DocMaster` format
       var docMaster = generateReturnJson(masterData, toUpload);
       log(docMaster);
 
-      // Update to API first
+      // Upload to API
       bool apiSuccess = await RetrunRepo().updateReturn(master: docMaster);
       log(apiSuccess.toString());
       if (!apiSuccess) {
         log("API update failed.");
+        CustomWidget.customSnackBar(
+          title: "Upload Failed",
+          message: "Failed to upload return to server. Please try again.",
+          backgroundColor: Colors.red,
+        );
         finalizeIsLoading.value = false;
         return false;
       }
 
-      // delete the particular item from master and details
+      // API succeeded — clear local DB
       var resMaster = await DBHelper.deleteItemsByQuery(
           tableName: DBHelper.docMaster,
           where:
@@ -1111,6 +1197,7 @@ class ReturnController extends GetxController {
             'R'
           ]);
       log(resMaster.toString());
+
       var resDet = await DBHelper.deleteItemsByQuery(
           tableName: DBHelper.docDetail,
           where:
@@ -1121,23 +1208,37 @@ class ReturnController extends GetxController {
             'R'
           ]);
       log(resDet.toString());
-      if (resDet != -1 && resMaster != -1 && apiSuccess) {
-        log("DB update successful: Master & Details updated.");
+
+      if (resDet != -1 && resMaster != -1) {
+        log("DB cleanup successful.");
+        savedItems.clear();
+        consolidatedSavedItems.clear();
+        selectedCustomer.value = Customer();
+        selectedPart.value = null;
         finalizeIsLoading.value = false;
         return true;
       } else {
-        log("DB update failed.");
+        // Upload succeeded but local cleanup failed — warn user, do NOT let them retry (would double-upload)
+        log("DB cleanup failed after successful API upload.");
+        CustomWidget.customSnackBar(
+          title: "Warning",
+          message: "Return was uploaded to server but local data cleanup failed. Please contact support.",
+          backgroundColor: Colors.orange,
+        );
+        finalizeIsLoading.value = false;
+        return true;
       }
-      savedItems.clear();
-      consolidatedSavedItems.clear();
-      selectedCustomer.value = Customer();
-      selectedPart.value = null;
     } catch (e) {
       log("Error in finalize(): $e");
+      CustomWidget.customSnackBar(
+        title: "Unexpected Error",
+        message: "An error occurred: $e",
+        backgroundColor: Colors.red,
+      );
     }
 
     finalizeIsLoading.value = false;
-    return false; // Return false if any step fails
+    return false;
   }
 
   void getTotalQty() {

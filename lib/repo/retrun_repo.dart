@@ -22,7 +22,7 @@ class RetrunRepo {
               '${_url}Return/Sync_NewCustomer?Company=$company&query=$query');
           // final client = http.Client();
           final client =
-             await HttpClientHelper().getClient(); // Instead of http.Client()
+              await HttpClientHelper().getClient(); // Instead of http.Client()
           log(url.toString());
           final response = await client.get(url);
           log("Response Code: ${response.statusCode}");
@@ -54,7 +54,7 @@ class RetrunRepo {
           final Uri url = Uri.parse('${_url}Return/GetReason?query');
           // final client = http.Client();
           final client =
-             await HttpClientHelper().getClient(); // Instead of http.Client()
+              await HttpClientHelper().getClient(); // Instead of http.Client()
           log(url.toString());
           final response = await client.get(url);
           log("Response Code: ${response.statusCode}");
@@ -88,7 +88,7 @@ class RetrunRepo {
           final Uri url = Uri.parse('${_url}Return/GetPartData?barcode=$query');
           // final client = http.Client();
           final client =
-             await HttpClientHelper().getClient(); // Instead of http.Client()
+              await HttpClientHelper().getClient(); // Instead of http.Client()
           log(url.toString());
           final response = await client.get(url);
           log("Response Code: ${response.statusCode}");
@@ -122,10 +122,11 @@ class RetrunRepo {
     return await RetryHelper.retry<List<DocMaster>>(
       apiCall: () async {
         final Uri url = Uri.parse(
-            '${_url}Operational/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
+            '${_url}Return/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
         log(url.toString());
         // final client = http.Client();
-        final client =await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client =
+            await HttpClientHelper().getClient(); // Instead of http.Client()
         final response = await client.get(url);
         log("Response Code get invoice: ${response.statusCode}");
         if (response.statusCode == 200) {
@@ -149,7 +150,8 @@ class RetrunRepo {
         final Uri url = Uri.parse('${_url}Return/CreateReturn');
         var body = master;
         // final client = http.Client();
-        final client =await HttpClientHelper().getClient(); // Instead of http.Client()
+        final client =
+            await HttpClientHelper().getClient(); // Instead of http.Client()
         log(url.toString());
         final response = await client.post(url,
             headers: {

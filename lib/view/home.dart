@@ -92,6 +92,11 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
+          Spacer(),
+          Obx(() => Text(
+                "Sahayi - v${con.version.value} b${con.buildNumber.value}",
+                style: Theme.of(context).textTheme.labelSmall,
+              ))
         ],
       ),
     );

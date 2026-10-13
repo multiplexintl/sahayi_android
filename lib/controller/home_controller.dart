@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:get/get.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../model/user.dart';
@@ -10,11 +11,17 @@ import 'connectivity_controller.dart';
 class HomeController extends GetxController {
   var user = Rx<User>(User());
 
+  var version = Rxn<String>();
+  var buildNumber = Rxn<String>();
+
   @override
-  void onInit() {
+  void onInit() async {
+    super.onInit();
     user.value = Get.arguments;
     Get.put(ConnectivityController());
-    super.onInit();
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    version.value = packageInfo.version;
+    buildNumber.value = packageInfo.buildNumber;
   }
 
   void logOut() async {
