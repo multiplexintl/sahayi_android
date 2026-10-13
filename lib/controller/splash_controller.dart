@@ -26,6 +26,7 @@ class SplashController extends GetxController {
         await getCurrentUser();
       } else {
         log("Permission Denied");
+        AppLogger.warn('Permission', 'Storage permission denied');
         Get.snackbar("Permission Required", "Storage permission is required.");
       }
     });
@@ -34,6 +35,9 @@ class SplashController extends GetxController {
   Future<void> _checkForUpdate() async {
     try {
       final updateInfo = await UpdateService().checkForUpdate();
+      AppLogger.info('UpdateCheck', updateInfo == null
+          ? 'No update available'
+          : 'Update available: ${updateInfo.versionName} (${updateInfo.versionCode})');
       if (updateInfo != null) {
         final context = Get.context;
         if (context != null) {
@@ -42,6 +46,7 @@ class SplashController extends GetxController {
       }
     } catch (e) {
       log('Update check skipped: $e');
+      AppLogger.warn('UpdateCheck', 'Update check failed: $e');
     }
   }
 
@@ -72,10 +77,13 @@ class SplashController extends GetxController {
       if (difference < _sessionDuration) {
         currentUser.value = User.fromJson(jsonDecode(userJson));
         AppLogger.setUser(currentUser.value?.empID);
+        AppLogger.setCompany(currentUser.value?.company);
+        AppLogger.info('AutoLogin', 'Session restored for ${currentUser.value?.empID} (logged in ${difference}h ago)');
         log("Auto-logged in as: ${currentUser.value?.empName}");
         Get.offNamed(RouteLinks.home, arguments: currentUser.value);
       } else {
         log("Session expired, redirecting to login.");
+        AppLogger.info('SessionExpired', 'Session older than $_sessionDuration h, asking for login');
         await clearSession();
         Get.offNamed(RouteLinks.login);
       }

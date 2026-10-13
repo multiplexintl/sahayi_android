@@ -13,6 +13,7 @@ import 'package:sahayi_android/routes.dart';
 import '../model/company.dart';
 import '../model/invoice/doc_detail.dart';
 import '../model/invoice/doc_master.dart';
+import '../service/app_logger.dart';
 
 class ReportController extends GetxController {
   var fromDateController = TextEditingController().obs;
@@ -145,6 +146,8 @@ class ReportController extends GetxController {
 
       // Determine docType from selectedType
       String selectedTypeKey = selectedType.value?.keys.firstOrNull ?? 'A';
+      AppLogger.info('ReportSearch',
+          'Type $selectedTypeKey, ${docNumController.value.text.isNotEmpty ? 'doc ${docNumController.value.text}' : '${fromDateController.value.text} to ${toDateController.value.text}'}, all companies: ${fetchAll.value}');
       List<Report> allReports = [];
 
       if (selectedTypeKey == 'A') {
@@ -168,6 +171,7 @@ class ReportController extends GetxController {
           res.fold(
             (errorMsg) {
               log("Error fetching reports for type $type: $errorMsg");
+              AppLogger.warn('ReportSearch', 'Type $type: $errorMsg');
             },
             (reps) {
               if (reps != null) {
@@ -194,6 +198,7 @@ class ReportController extends GetxController {
         res.fold(
           (errorMsg) {
             log("Error fetching reports: $errorMsg");
+            AppLogger.warn('ReportSearch', 'Type $selectedTypeKey: $errorMsg');
             CustomWidget.customSnackBar(
               title: "Error",
               message: errorMsg,
@@ -215,6 +220,7 @@ class ReportController extends GetxController {
       filteredReports.value =
           mapAndSortReportsByScanTime(allReports, homeCon.companyList);
       update();
+      AppLogger.info('ReportResult', '${allReports.length} rows');
       log(reports[0].toString());
 
       CustomWidget.customSnackBar(
@@ -224,6 +230,7 @@ class ReportController extends GetxController {
         textColor: Colors.white,
       );
     } catch (e, stacktrace) {
+      AppLogger.error('ReportSearch', 'fetchReport crashed', error: e, stack: stacktrace);
       log("Error in fetchReport: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(

@@ -39,15 +39,19 @@ class LoginController extends GetxController {
   // get employee
   void getEmployee() async {
     isLoading.value = true;
+    AppLogger.info('Login', 'Login attempt for ${idController.text}');
     var res = await LoginRepo()
         .getEmployee(empId: idController.text, pwd: pwdController.text);
     res.fold(
       (error) {
+        AppLogger.warn('LoginFailed', 'Login failed for ${idController.text}: $error');
         CustomWidget.customSnackBar(
             title: "Error!!", message: error, backgroundColor: Colors.red);
       },
       (user) {
         AppLogger.setUser(user.empID);
+        AppLogger.setCompany(user.company);
+        AppLogger.info('LoginOk', 'Logged in as ${user.empID} (${user.empName})');
         currentUser = user;
         isLoading.value = false;
         saveUserSession(user).then((val) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 
 import '../../service/update_service.dart';
+import '../../service/app_logger.dart';
 
 class UpdateDialog extends StatefulWidget {
   final UpdateInfo updateInfo;
@@ -150,7 +151,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
       setState(() => _phase = _Phase.installing);
       await _openInstaller(apkFile);
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.error('UpdateDownload', 'Download/install failed', error: e, stack: st);
       log('Download/install error: $e');
       if (mounted) {
         setState(() {
@@ -167,6 +169,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       type: 'application/vnd.android.package-archive',
     );
     log('OpenFile result: ${result.type} — ${result.message}');
+    AppLogger.info('UpdateInstall', 'Installer opened: ${result.type.name} ${result.message}');
 
     // After install prompt is shown, go back to idle so user can retry if needed
     if (mounted) {

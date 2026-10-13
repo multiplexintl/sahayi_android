@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import '../service/app_logger.dart';
 
 class UpdateInfo {
   final int versionCode;
@@ -50,6 +51,7 @@ class UpdateService {
 
       if (response.statusCode != 200) {
         log('version.json fetch failed: ${response.statusCode}');
+        AppLogger.warn('UpdateCheck', 'version.json returned HTTP ${response.statusCode}');
         return null;
       }
 
@@ -81,10 +83,12 @@ class UpdateService {
       await file.delete();
     }
 
+    AppLogger.info('UpdateDownload', 'Downloading ${updateInfo.apkName}');
     final request = http.Request('GET', Uri.parse(updateInfo.apkUrl));
     final response = await http.Client().send(request);
 
     if (response.statusCode != 200) {
+      AppLogger.error('UpdateDownload', 'APK download failed: HTTP ${response.statusCode}');
       throw Exception('APK download failed: HTTP ${response.statusCode}');
     }
 
@@ -103,6 +107,7 @@ class UpdateService {
     await sink.close();
 
     log('APK downloaded to: $filePath');
+    AppLogger.info('UpdateDownload', 'APK downloaded ($receivedBytes bytes)');
     return file;
   }
 }
