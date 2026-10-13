@@ -412,7 +412,7 @@ class InvoiceOrTransferController extends GetxController {
 
   void soundAndVibrate() async {
     player.play(AssetSource(errorSound), volume: 1);
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate();
     }
   }
