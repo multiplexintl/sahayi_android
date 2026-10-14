@@ -100,10 +100,17 @@ class LogDB {
   }
 
   /// Dashboard search, newest first. All filters optional.
+  /// [levels]/[actions] match any of the given values.
   /// [from]/[to] use the device time (ClientTime); [to] is exclusive.
   /// Paging: pass the smallest LocalID of the previous page as [beforeId].
   Future<List<AppLog>> search({
     String? level,
+    Iterable<String>? levels,
+    Iterable<String>? actions,
+    String? screen,
+    String? userId,
+    String? docType,
+    int? uploadState,
     String? text,
     DateTime? from,
     DateTime? to,
@@ -112,9 +119,34 @@ class LogDB {
   }) async {
     final where = <String>[];
     final args = <Object?>[];
-    if (level != null && level.isNotEmpty) {
-      where.add('Level = ?');
-      args.add(level.toUpperCase());
+
+    void anyOf(String column, Iterable<String> values) {
+      final list = values.where((v) => v.isNotEmpty).toList();
+      if (list.isEmpty) return;
+      where.add('$column IN (${List.filled(list.length, '?').join(',')})');
+      args.addAll(list);
+    }
+
+    anyOf('Level', [
+      if (level != null) level.toUpperCase(),
+      ...?levels?.map((l) => l.toUpperCase()),
+    ]);
+    if (actions != null) anyOf('Action', actions);
+    if (screen != null && screen.isNotEmpty) {
+      where.add('Screen = ?');
+      args.add(screen);
+    }
+    if (userId != null && userId.isNotEmpty) {
+      where.add('UserID = ?');
+      args.add(userId);
+    }
+    if (docType != null && docType.isNotEmpty) {
+      where.add('DocType = ?');
+      args.add(docType);
+    }
+    if (uploadState != null) {
+      where.add('Uploaded = ?');
+      args.add(uploadState);
     }
     if (from != null) {
       where.add('ClientTime >= ?');
@@ -143,6 +175,17 @@ class LogDB {
         orderBy: 'LocalID DESC',
         limit: limit);
     return rows.map(AppLog.fromDB).toList();
+  }
+
+  /// Values present in a column, most frequent first (for filter dropdowns).
+  Future<List<({String value, int count})>> distinctValues(String column) async {
+    const allowed = {'Action', 'Screen', 'UserID', 'DocType'};
+    if (!allowed.contains(column)) throw ArgumentError('Column not allowed: $column');
+    final rows = await _db.rawQuery(
+        'SELECT $column AS V, COUNT(*) AS N FROM $table '
+        'WHERE $column IS NOT NULL AND $column <> \'\' '
+        'GROUP BY $column ORDER BY N DESC, V LIMIT 100');
+    return rows.map((r) => (value: r['V'] as String, count: r['N'] as int)).toList();
   }
 
   /// Counts for the dashboard header.

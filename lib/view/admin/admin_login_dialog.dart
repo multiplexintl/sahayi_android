@@ -60,9 +60,16 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      // Whole dialog scrolls and uses small margins: fits small screens with
+      // the keyboard open and large system fonts.
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       title: Text(_usePin ? 'Offline PIN' : 'Admin login'),
-      content: SingleChildScrollView(
-        child: Column(
+      content: Builder(
+        builder: (_) => Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

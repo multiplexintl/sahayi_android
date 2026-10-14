@@ -148,6 +148,11 @@ class AdminService {
   }
 
   @visibleForTesting
+  static AdminSession testSession({required bool online}) => online
+      ? const AdminSession._(AdminMode.online, 'MX1576', 'Test Admin', 'x')
+      : const AdminSession._(AdminMode.offlinePin, null, null, null);
+
+  @visibleForTesting
   static void resetForTest() {
     current = null;
     _pinFailures = 0;

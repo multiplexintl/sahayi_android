@@ -9,6 +9,8 @@ import '../../service/log_uploader.dart';
 import 'log_widgets.dart';
 
 /// "This device" tab: status, filters and the logs stored on this scanner.
+/// Laid out for small screens: one-line summary (expandable), one-line filter
+/// bar, one row of quick filters, then the list.
 class DeviceLogsTab extends StatefulWidget {
   const DeviceLogsTab({super.key});
 
@@ -54,9 +56,23 @@ class _DeviceLogsTabState extends State<DeviceLogsTab>
 
     return Column(
       children: [
-        _StatusCard(con: con),
-        _Filters(con: con),
-        const Divider(height: 1),
+        _StatusBar(con: con),
+        Obx(() => FilterBar(
+              search: con.searchController,
+              onSearchChanged: con.onSearchChanged,
+              onClearSearch: con.clearSearch,
+              filter: con.filter.value,
+              onDates: con.setDates,
+              onMoreFilters: () async {
+                final f = await FilterSheet.show(context,
+                    initial: con.filter.value, valuesOf: con.valuesOf);
+                if (f != null) con.setFilter(f);
+              },
+            )),
+        Obx(() => ActiveDatesLine(
+            filter: con.filter.value, onClear: () => con.setDates(null, null))),
+        Obx(() => PresetChips(filter: con.filter.value, onSelected: con.setPreset)),
+        const Divider(height: 8),
         Expanded(
           child: Obx(() {
             if (con.loading.value && con.logs.isEmpty) {
@@ -75,7 +91,7 @@ class _DeviceLogsTabState extends State<DeviceLogsTab>
                 itemBuilder: (context, i) {
                   if (i == con.logs.length) {
                     return Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       child: Center(
                         child: con.hasMore.value
                             ? const CircularProgressIndicator()
@@ -95,11 +111,12 @@ class _DeviceLogsTabState extends State<DeviceLogsTab>
   }
 }
 
-class _StatusCard extends StatelessWidget {
+/// One line: counts + Upload + Clear + expand. Expanded: upload/device details.
+class _StatusBar extends StatelessWidget {
   final DeviceLogsController con;
-  const _StatusCard({required this.con});
+  const _StatusBar({required this.con});
 
-  Future<void> _confirmClear(BuildContext context, {required bool onlySent}) async {
+  Future<void> _confirmClear({required bool onlySent}) async {
     final waiting = con.stats.value?.waiting ?? 0;
     final ok = await Get.dialog<bool>(AlertDialog(
       title: Text(onlySent ? 'Clear sent logs?' : 'Clear ALL logs on this device?'),
@@ -128,46 +145,51 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final small = Theme.of(context).textTheme.labelSmall;
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Obx(() {
-          final s = con.stats.value;
-          final paused = LogUploader.pausedUntil;
-          final last = LogUploader.lastSuccessAt;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                CountTile('Total', s?.total ?? 0),
-                CountTile('Waiting', s?.waiting ?? 0,
-                    color: (s?.waiting ?? 0) > 0 ? Colors.orange : null),
-                CountTile('Sent', s?.sent ?? 0, color: Colors.green),
-                CountTile('Rejected', s?.rejected ?? 0,
-                    color: (s?.rejected ?? 0) > 0 ? Colors.red : null),
-              ]),
-              const SizedBox(height: 8),
-              Text('Errors ${s?.errors ?? 0} · Warnings ${s?.warnings ?? 0}', style: small),
-              Text(
-                  'Last upload: ${last == null ? 'not yet (this session)' : logTimeFormat.format(last)}'
-                  '${LogUploader.lastResult == null ? '' : ' · ${LogUploader.lastResult}'}',
-                  style: small),
-              if (paused != null && DateTime.now().isBefore(paused))
-                Text('Uploads paused until ${logTimeFormat.format(paused)}',
-                    style: small?.copyWith(color: Colors.orange)),
-              Text('Device ${AppLogger.deviceId ?? '?'} · ${AppLogger.deviceSummary ?? ''}',
-                  style: small),
-              Text('Server ${GlobalConfiguration().getValue('api_base_url')}', style: small),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: ElevatedButton.icon(
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      child: Obx(() {
+        final s = con.stats.value;
+        final expanded = con.statusExpanded.value;
+        final paused = LogUploader.pausedUntil;
+        final last = LogUploader.lastSuccessAt;
+        final waiting = s?.waiting ?? 0;
+        final rejected = s?.rejected ?? 0;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => con.statusExpanded.toggle(),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Row(children: [
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(style: small, children: [
+                        TextSpan(text: '${s?.total ?? 0} logs'),
+                        const TextSpan(text: ' · '),
+                        TextSpan(
+                            text: '$waiting waiting',
+                            style: TextStyle(color: waiting > 0 ? Colors.orange : null)),
+                        const TextSpan(text: ' · '),
+                        TextSpan(
+                            text: '${s?.errors ?? 0} errors',
+                            style: TextStyle(color: (s?.errors ?? 0) > 0 ? Colors.red : null)),
+                        if (rejected > 0)
+                          TextSpan(
+                              text: ' · $rejected rejected',
+                              style: const TextStyle(color: Colors.red)),
+                      ]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Upload now',
+                    visualDensity: VisualDensity.compact,
                     icon: con.uploading.value
                         ? const SizedBox(
-                            width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.cloud_upload),
-                    label: const Text('Upload now'),
+                            width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.cloud_upload_outlined),
                     onPressed: con.uploading.value
                         ? null
                         : () async {
@@ -175,63 +197,54 @@ class _StatusCard extends StatelessWidget {
                             Get.snackbar('Upload', msg, snackPosition: SnackPosition.BOTTOM);
                           },
                   ),
-                ),
-                const SizedBox(width: 8),
-                PopupMenuButton<bool>(
-                  tooltip: 'Clear logs',
-                  onSelected: (onlySent) => _confirmClear(context, onlySent: onlySent),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: true, child: Text('Clear sent logs')),
-                    PopupMenuItem(
-                        value: false,
-                        child: Text('Clear ALL logs', style: TextStyle(color: Colors.red))),
+                  PopupMenuButton<bool>(
+                    tooltip: 'Clear logs',
+                    icon: const Icon(Icons.delete_outline),
+                    padding: EdgeInsets.zero,
+                    onSelected: (onlySent) => _confirmClear(onlySent: onlySent),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: true, child: Text('Clear sent logs')),
+                      PopupMenuItem(
+                          value: false,
+                          child: Text('Clear ALL logs', style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                  Icon(expanded ? Icons.expand_less : Icons.expand_more),
+                  const SizedBox(width: 8),
+                ]),
+              ),
+            ),
+            if (expanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        'Sent ${s?.sent ?? 0} · Waiting $waiting · Rejected $rejected · '
+                        'Warnings ${s?.warnings ?? 0}',
+                        style: small),
+                    Text(
+                        'Last upload: ${last == null ? 'not yet (this session)' : logTimeFormat.format(last)}'
+                        '${LogUploader.lastResult == null ? '' : ' · ${LogUploader.lastResult}'}',
+                        style: small),
+                    if (paused != null && DateTime.now().isBefore(paused))
+                      Text('Uploads paused until ${logTimeFormat.format(paused)}',
+                          style: small?.copyWith(color: Colors.orange)),
+                    if (s?.oldest != null)
+                      Text(
+                          'Oldest ${logTimeFormat.format(s!.oldest!)} · newest ${logTimeFormat.format(s.newest!)}',
+                          style: small),
+                    Text('Device ${AppLogger.deviceId ?? '?'} · ${AppLogger.deviceSummary ?? ''}',
+                        style: small),
+                    Text('Server ${GlobalConfiguration().getValue('api_base_url')}',
+                        style: small),
                   ],
-                  child: const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Row(children: [Icon(Icons.delete_outline), Text('Clear')]),
-                  ),
                 ),
-              ]),
-            ],
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _Filters extends StatelessWidget {
-  final DeviceLogsController con;
-  const _Filters({required this.con});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: Obx(() => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              LevelFilter(selected: con.level.value, onChanged: con.setLevel),
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: con.searchController,
-                    onChanged: con.onSearchChanged,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: 'Search action, message, doc, user',
-                      suffixIcon: IconButton(
-                          icon: const Icon(Icons.clear), onPressed: con.clearSearch),
-                    ),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 4),
-              DateRangeButton(
-                  from: con.from.value, to: con.to.value, onChanged: con.setDates),
-            ],
-          )),
+              ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -249,8 +262,7 @@ class _LogTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final small = Theme.of(context).textTheme.labelSmall;
-    return ListTile(
-      dense: true,
+    return InkWell(
       onTap: () => LogDetailPage.open('Log #${log.localId}', {
         'Time (device)': logTimeFormat.format(log.clientTime),
         'Level': log.level,
@@ -269,27 +281,30 @@ class _LogTile extends StatelessWidget {
         },
         'Details': log.details,
       }),
-      title: Row(children: [
-        LevelBadge(log.level),
-        const SizedBox(width: 6),
-        Expanded(
-            child: Text(log.action,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis)),
-        Text(logShortTimeFormat.format(log.clientTime), style: small),
-        const SizedBox(width: 4),
-        Icon(_uploadIcon, size: 14, color: Colors.grey),
-      ]),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(log.message, maxLines: 2, overflow: TextOverflow.ellipsis),
-          if (log.docNum != null || log.userId != null || log.screen != null)
-            Text(
-                [log.userId, log.docNum, log.screen].whereType<String>().join(' · '),
-                style: small,
-                overflow: TextOverflow.ellipsis),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              LevelBadge(log.level),
+              const SizedBox(width: 6),
+              Expanded(
+                  child: Text(log.action,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      overflow: TextOverflow.ellipsis)),
+              Text(logShortTimeFormat.format(log.clientTime), style: small),
+              const SizedBox(width: 4),
+              Icon(_uploadIcon, size: 13, color: Colors.grey),
+            ]),
+            const SizedBox(height: 2),
+            Text(log.message,
+                maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+            if (log.docNum != null || log.userId != null || log.screen != null)
+              Text([log.userId, log.docNum, log.screen].whereType<String>().join(' · '),
+                  style: small, overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }

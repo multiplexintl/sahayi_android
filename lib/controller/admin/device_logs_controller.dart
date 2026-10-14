@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../db/log_db.dart';
 import '../../model/app_log.dart';
+import '../../model/log_filter.dart';
 import '../../service/app_logger.dart';
 import '../../service/log_uploader.dart';
 
@@ -17,10 +18,9 @@ class DeviceLogsController extends GetxController {
 
   final logs = <AppLog>[].obs;
   final stats = Rxn<LogStats>();
-  final level = RxnString();
-  final from = Rxn<DateTime>();
-  final to = Rxn<DateTime>(); // inclusive day
+  final filter = const LogFilter().obs;
   final searchController = TextEditingController();
+  final statusExpanded = false.obs;
 
   final loading = false.obs;
   final loadingMore = false.obs;
@@ -42,17 +42,22 @@ class DeviceLogsController extends GetxController {
     super.onClose();
   }
 
-  Future<List<AppLog>> _page({int? beforeId}) => db.search(
-        level: level.value,
-        text: searchController.text,
-        from: from.value,
-        // the picked "to" day is inclusive: search up to the next midnight
-        to: to.value == null
-            ? null
-            : DateTime(to.value!.year, to.value!.month, to.value!.day + 1),
-        beforeId: beforeId,
-        limit: pageSize,
-      );
+  Future<List<AppLog>> _page({int? beforeId}) {
+    final f = filter.value;
+    return db.search(
+      levels: f.levels,
+      actions: f.actions,
+      screen: f.screen,
+      userId: f.userId,
+      docType: f.docType,
+      uploadState: f.uploadState,
+      text: searchController.text,
+      from: f.from,
+      to: f.toExclusive,
+      beforeId: beforeId,
+      limit: pageSize,
+    );
+  }
 
   Future<void> refreshAll() async {
     loading.value = true;
@@ -79,16 +84,19 @@ class DeviceLogsController extends GetxController {
     }
   }
 
-  void setLevel(String? value) {
-    level.value = value;
+  void setFilter(LogFilter f) {
+    filter.value = f;
     refreshAll();
   }
 
-  void setDates(DateTime? start, DateTime? end) {
-    from.value = start;
-    to.value = end;
-    refreshAll();
-  }
+  void setPreset(LogPreset p) => setFilter(p.apply(filter.value));
+
+  void setDates(DateTime? start, DateTime? end) =>
+      setFilter(filter.value.copyWith(from: () => start, to: () => end));
+
+  /// Values for the filter sheet dropdowns (Action, Screen, UserID, DocType).
+  Future<List<({String value, int count})>> valuesOf(String column) =>
+      db.distinctValues(column);
 
   void onSearchChanged(String _) {
     _searchDebounce?.cancel();
@@ -116,7 +124,7 @@ class DeviceLogsController extends GetxController {
   Future<int> clear({required bool onlySent}) async {
     final removed = await db.clear(onlySent: onlySent);
     AppLogger.warn('LocalLogsCleared',
-        'Admin cleared $removed ${onlySent ? 'sent' : ''} logs on this device'.replaceAll('  ', ' '));
+        onlySent ? 'Admin cleared $removed sent logs on this device' : 'Admin cleared ALL $removed logs on this device');
     await refreshAll();
     return removed;
   }

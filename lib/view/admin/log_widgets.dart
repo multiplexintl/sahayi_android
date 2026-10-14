@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
+import '../../model/log_filter.dart';
+
 /// Shared pieces for the logs dashboard tabs.
 
 final DateFormat logTimeFormat = DateFormat('dd-MM-yyyy HH:mm:ss');
@@ -52,69 +54,6 @@ class CountTile extends StatelessWidget {
           ],
         ),
       );
-}
-
-/// Level filter: All / ERROR / WARN / INFO.
-class LevelFilter extends StatelessWidget {
-  final String? selected;
-  final ValueChanged<String?> onChanged;
-  const LevelFilter({super.key, required this.selected, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) => Wrap(
-        spacing: 6,
-        children: [
-          for (final level in [null, 'ERROR', 'WARN', 'INFO'])
-            ChoiceChip(
-              label: Text(level ?? 'All'),
-              selected: selected == level,
-              visualDensity: VisualDensity.compact,
-              selectedColor: level == null ? null : levelColor(level).withValues(alpha: 0.2),
-              onSelected: (_) => onChanged(level),
-            ),
-        ],
-      );
-}
-
-/// Date range button: "Any date" or "01-10 → 14-10", with a clear (x).
-class DateRangeButton extends StatelessWidget {
-  final DateTime? from;
-  final DateTime? to; // inclusive day shown to the user
-  final void Function(DateTime? from, DateTime? to) onChanged;
-  const DateRangeButton(
-      {super.key, required this.from, required this.to, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final f = DateFormat('dd-MM');
-    final label = from == null ? 'Any date' : '${f.format(from!)} → ${f.format(to ?? from!)}';
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        OutlinedButton.icon(
-          icon: const Icon(Icons.date_range, size: 18),
-          label: Text(label),
-          onPressed: () async {
-            final now = DateTime.now();
-            final picked = await showDateRangePicker(
-              context: context,
-              firstDate: now.subtract(const Duration(days: 120)),
-              lastDate: now,
-              initialDateRange:
-                  from == null ? null : DateTimeRange(start: from!, end: to ?? from!),
-            );
-            if (picked != null) onChanged(picked.start, picked.end);
-          },
-        ),
-        if (from != null)
-          IconButton(
-            tooltip: 'Any date',
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: () => onChanged(null, null),
-          ),
-      ],
-    );
-  }
 }
 
 /// Full details of one log, with a Copy button (for WhatsApp / email).
@@ -168,6 +107,320 @@ class LogDetailPage extends StatelessWidget {
                 ),
               ),
         ],
+      ),
+    );
+  }
+}
+
+/// One scrollable row of one-tap filters (All, Errors, Network, ...).
+class PresetChips extends StatelessWidget {
+  final LogFilter filter;
+  final ValueChanged<LogPreset> onSelected;
+  final bool showWaiting; // "Waiting upload" only makes sense on this device
+  const PresetChips(
+      {super.key, required this.filter, required this.onSelected, this.showWaiting = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final current = LogPreset.matching(filter);
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        children: [
+          for (final p in LogPreset.values)
+            if (showWaiting || p != LogPreset.waiting)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  label: Text(p.label, style: const TextStyle(fontSize: 12)),
+                  selected: current == p,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  onSelected: (_) => onSelected(p),
+                ),
+              ),
+          if (current == null)
+            const Padding(
+              padding: EdgeInsets.only(right: 6),
+              child: Chip(
+                label: Text('Custom', style: TextStyle(fontSize: 12)),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Search box + date button + "more filters" button, in one row.
+class FilterBar extends StatelessWidget {
+  final TextEditingController search;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+  final LogFilter filter;
+  final void Function(DateTime? from, DateTime? to) onDates;
+  final VoidCallback onMoreFilters;
+  const FilterBar({
+    super.key,
+    required this.search,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+    required this.filter,
+    required this.onDates,
+    required this.onMoreFilters,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = Theme.of(context).colorScheme.primary;
+    final dateSet = filter.from != null;
+    final more = filter.activeCount - (dateSet ? 1 : 0);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 4, 2),
+      child: Row(children: [
+        Expanded(
+          child: SizedBox(
+            height: 36,
+            child: TextField(
+              controller: search,
+              onChanged: onSearchChanged,
+              style: const TextStyle(fontSize: 14),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                prefixIcon: const Icon(Icons.search, size: 20),
+                prefixIconConstraints: const BoxConstraints(minWidth: 32),
+                hintText: 'Search',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onClearSearch,
+                ),
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: dateSet ? 'Dates (long-press to clear)' : 'Dates',
+          visualDensity: VisualDensity.compact,
+          icon: Icon(dateSet ? Icons.event_available : Icons.date_range,
+              color: dateSet ? active : null),
+          onPressed: () async {
+            final now = DateTime.now();
+            final picked = await showDateRangePicker(
+              context: context,
+              firstDate: now.subtract(const Duration(days: 120)),
+              lastDate: now,
+              initialDateRange: filter.from == null
+                  ? null
+                  : DateTimeRange(start: filter.from!, end: filter.to ?? filter.from!),
+            );
+            if (picked != null) onDates(picked.start, picked.end);
+          },
+        ),
+        IconButton(
+          tooltip: 'More filters',
+          visualDensity: VisualDensity.compact,
+          onPressed: onMoreFilters,
+          icon: Badge(
+            isLabelVisible: more > 0,
+            label: Text('$more'),
+            child: Icon(Icons.tune, color: more > 0 ? active : null),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Small line under the filter bar when dates are set, with a clear (x).
+class ActiveDatesLine extends StatelessWidget {
+  final LogFilter filter;
+  final VoidCallback onClear;
+  const ActiveDatesLine({super.key, required this.filter, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    if (filter.from == null) return const SizedBox.shrink();
+    final f = DateFormat('dd-MM-yyyy');
+    return Padding(
+      padding: const EdgeInsets.only(left: 12),
+      child: Row(children: [
+        Text('${f.format(filter.from!)} → ${f.format(filter.to ?? filter.from!)}',
+            style: Theme.of(context).textTheme.labelSmall),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          iconSize: 16,
+          icon: const Icon(Icons.close),
+          onPressed: onClear,
+        ),
+      ]),
+    );
+  }
+}
+
+/// Bottom sheet with every filter. Returns the new filter, or null if cancelled.
+class FilterSheet extends StatefulWidget {
+  final LogFilter initial;
+  final Future<List<({String value, int count})>> Function(String column) valuesOf;
+  final bool showUploadState;
+  const FilterSheet({
+    super.key,
+    required this.initial,
+    required this.valuesOf,
+    this.showUploadState = true,
+  });
+
+  static Future<LogFilter?> show(BuildContext context,
+          {required LogFilter initial,
+          required Future<List<({String value, int count})>> Function(String column) valuesOf,
+          bool showUploadState = true}) =>
+      showModalBottomSheet<LogFilter>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => FilterSheet(
+            initial: initial, valuesOf: valuesOf, showUploadState: showUploadState),
+      );
+
+  @override
+  State<FilterSheet> createState() => _FilterSheetState();
+}
+
+class _FilterSheetState extends State<FilterSheet> {
+  late LogFilter f = widget.initial;
+  final _values = <String, List<({String value, int count})>>{};
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in ['Action', 'Screen', 'UserID']) {
+      widget.valuesOf(c).then((v) {
+        if (mounted) setState(() => _values[c] = v);
+      }).catchError((_) {});
+    }
+  }
+
+  Widget _section(String title, Widget child) => Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 4),
+          child,
+        ]),
+      );
+
+  Widget _chips<T>(List<(String, T)> options, T selected, ValueChanged<T> onTap) => Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          for (final (label, value) in options)
+            ChoiceChip(
+              label: Text(label),
+              selected: selected == value,
+              visualDensity: VisualDensity.compact,
+              onSelected: (_) => onTap(value),
+            ),
+        ],
+      );
+
+  /// Dropdown of values present in the logs. Null = any.
+  Widget _dropdown(String column, String? selected, ValueChanged<String?> onChanged) {
+    final values = _values[column];
+    if (values == null) return const LinearProgressIndicator();
+    final items = [
+      const DropdownMenuItem<String?>(value: null, child: Text('Any')),
+      for (final v in values)
+        DropdownMenuItem<String?>(
+            value: v.value,
+            child: Text('${v.value}  (${v.count})', overflow: TextOverflow.ellipsis)),
+      if (selected != null && !values.any((v) => v.value == selected))
+        DropdownMenuItem<String?>(value: selected, child: Text(selected)),
+    ];
+    return DropdownButton<String?>(
+      isExpanded: true,
+      isDense: true,
+      value: selected,
+      items: items,
+      onChanged: onChanged,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final action = f.actions.length == 1 ? f.actions.first : null;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        builder: (context, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          children: [
+            Row(children: [
+              Text('Filters', style: Theme.of(context).textTheme.titleMedium),
+              const Spacer(),
+              TextButton(
+                onPressed: () => setState(() => f = LogFilter(from: f.from, to: f.to)),
+                child: const Text('Reset'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(f),
+                child: const Text('Apply'),
+              ),
+            ]),
+            _section(
+              'Level (any of)',
+              Wrap(spacing: 6, children: [
+                for (final level in ['ERROR', 'WARN', 'INFO'])
+                  FilterChip(
+                    label: Text(level),
+                    selected: f.levels.contains(level),
+                    selectedColor: levelColor(level).withValues(alpha: 0.2),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (on) => setState(() => f = f.copyWith(
+                        levels: on ? {...f.levels, level} : ({...f.levels}..remove(level)))),
+                  ),
+              ]),
+            ),
+            _section(
+              f.actions.length > 1
+                  ? 'Action (${f.actions.length} selected by a quick filter)'
+                  : 'Action',
+              _dropdown('Action', action,
+                  (v) => setState(() => f = f.copyWith(actions: v == null ? {} : {v}))),
+            ),
+            _section('Screen',
+                _dropdown('Screen', f.screen, (v) => setState(() => f = f.copyWith(screen: () => v)))),
+            _section('User',
+                _dropdown('UserID', f.userId, (v) => setState(() => f = f.copyWith(userId: () => v)))),
+            _section(
+              'Document type',
+              _chips<String?>(
+                [('Any', null), ('Invoice', 'I'), ('Transfer', 'T'), ('Return', 'R')],
+                f.docType,
+                (v) => setState(() => f = f.copyWith(docType: () => v)),
+              ),
+            ),
+            if (widget.showUploadState)
+              _section(
+                'Upload',
+                _chips<int?>(
+                  [('Any', null), ('Waiting', 0), ('Sent', 1), ('Rejected', 2)],
+                  f.uploadState,
+                  (v) => setState(() => f = f.copyWith(uploadState: () => v)),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
