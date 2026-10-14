@@ -426,3 +426,61 @@ class _FilterSheetState extends State<FilterSheet> {
     );
   }
 }
+
+/// One log in a list (both tabs). Line 1: level + action (+ trailing icon);
+/// line 2: message; line 3: time · user · doc · screen. Nothing in the first
+/// line has a fixed width except the badge and icon, so it fits small screens
+/// and large fonts.
+class LogTile extends StatelessWidget {
+  final String? level;
+  final String action;
+  final String message;
+  final DateTime time;
+  final List<String?> meta;
+  final IconData? trailingIcon;
+  final VoidCallback onTap;
+  const LogTile({
+    super.key,
+    required this.level,
+    required this.action,
+    required this.message,
+    required this.time,
+    this.meta = const [],
+    this.trailingIcon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final small = Theme.of(context).textTheme.labelSmall;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              LevelBadge(level),
+              const SizedBox(width: 6),
+              Expanded(
+                  child: Text(action,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      overflow: TextOverflow.ellipsis)),
+              if (trailingIcon != null) Icon(trailingIcon, size: 13, color: Colors.grey),
+            ]),
+            const SizedBox(height: 2),
+            Text(message,
+                maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+            Text(
+                [logTimeFormat.format(time), ...meta.whereType<String>().where((m) => m.isNotEmpty)]
+                    .join(' · '),
+                style: small,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -261,8 +261,13 @@ class _LogTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final small = Theme.of(context).textTheme.labelSmall;
-    return InkWell(
+    return LogTile(
+      level: log.level,
+      action: log.action,
+      message: log.message,
+      time: log.clientTime,
+      meta: [log.userId, log.docNum, log.screen],
+      trailingIcon: _uploadIcon,
       onTap: () => LogDetailPage.open('Log #${log.localId}', {
         'Time (device)': logTimeFormat.format(log.clientTime),
         'Level': log.level,
@@ -281,31 +286,6 @@ class _LogTile extends StatelessWidget {
         },
         'Details': log.details,
       }),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              LevelBadge(log.level),
-              const SizedBox(width: 6),
-              Expanded(
-                  child: Text(log.action,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                      overflow: TextOverflow.ellipsis)),
-              Text(logShortTimeFormat.format(log.clientTime), style: small),
-              const SizedBox(width: 4),
-              Icon(_uploadIcon, size: 13, color: Colors.grey),
-            ]),
-            const SizedBox(height: 2),
-            Text(log.message,
-                maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-            if (log.docNum != null || log.userId != null || log.screen != null)
-              Text([log.userId, log.docNum, log.screen].whereType<String>().join(' · '),
-                  style: small, overflow: TextOverflow.ellipsis),
-          ],
-        ),
-      ),
     );
   }
 }
