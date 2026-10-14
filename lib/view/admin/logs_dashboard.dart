@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../service/admin_service.dart';
+import 'all_devices_tab.dart';
 import 'device_logs_tab.dart';
 
 /// Hidden logs dashboard. Online admin: "This device" + "All devices".
@@ -79,21 +80,10 @@ class _LogsDashboardScreenState extends State<LogsDashboardScreen> {
         body: TabBarView(
           children: [
             const DeviceLogsTab(),
-            if (session.canSeeAllDevices)
-              const _ComingSoon(text: 'All devices: coming after that'),
+            if (session.canSeeAllDevices) const AllDevicesTab(),
           ],
         ),
       ),
     );
   }
-}
-
-class _ComingSoon extends StatelessWidget {
-  final String text;
-  const _ComingSoon({required this.text});
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
-      );
 }
