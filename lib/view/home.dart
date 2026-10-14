@@ -8,6 +8,7 @@ import 'package:sahayi_android/routes.dart';
 
 import '../helper/custom_colors.dart';
 import '../widgets/bottom_bar.dart';
+import '../widgets/admin_tap_detector.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -93,10 +94,13 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           Spacer(),
-          Obx(() => Text(
-                "Sahayi - v${con.version.value} b${con.buildNumber.value}",
-                style: Theme.of(context).textTheme.labelSmall,
-              ))
+          // 7 taps on the version opens the hidden admin login
+          AdminTapDetector(
+            child: Obx(() => Text(
+                  "Sahayi - v${con.version.value} b${con.buildNumber.value}",
+                  style: Theme.of(context).textTheme.labelSmall,
+                )),
+          )
         ],
       ),
     );

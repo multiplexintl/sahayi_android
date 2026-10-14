@@ -12,6 +12,7 @@ import 'package:sahayi_android/view/Invoice_Transfer/sync_invoice.dart';
 import 'view/login.dart';
 import 'view/Invoice_Transfer/scan_invoice.dart';
 import 'view/splash.dart';
+import 'view/admin/logs_dashboard.dart';
 
 class RouteGenerator {
   // Common transition settings
@@ -47,6 +48,7 @@ class RouteGenerator {
     _createPage(RouteLinks.customerSelect, () => const CustomerSelectScreen()),
     _createPage(RouteLinks.scanReturns, () => const ScanReturns()),
     _createPage(RouteLinks.finlaizeReturns, () => const FinalizeReturnScreen()),
+    _createPage(RouteLinks.logsDashboard, () => const LogsDashboardScreen()),
   ];
 }
 
@@ -63,6 +65,7 @@ class RouteLinks {
   static const String customerSelect = "/customer-select";
   static const String scanReturns = "/scan-returns";
   static const String finlaizeReturns = "/finalize-returns";
+  static const String logsDashboard = "/logs-dashboard";
 }
 
 

@@ -8,6 +8,7 @@ import '../model/app_log.dart';
 class LogDB {
   static const String dbName = "sahayi_logs.db";
   static const String table = "AppLog";
+  static const String settingsTable = "Settings";
 
   /// How long logs are kept on the device, and the hard cap on row count.
   static const Duration keepFor = Duration(days: 14);
@@ -23,8 +24,12 @@ class LogDB {
     final db = await f.openDatabase(
       p,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) await _createSettings(db);
+        },
         onCreate: (db, version) async {
+          await _createSettings(db);
           await db.execute("""CREATE TABLE $table(
             LocalID INTEGER PRIMARY KEY AUTOINCREMENT,
             ClientTime TEXT NOT NULL,
@@ -49,6 +54,20 @@ class LogDB {
     );
     return LogDB._(db);
   }
+
+  // Small key/value store (e.g. the scrambled admin PIN).
+  static Future<void> _createSettings(Database db) => db.execute(
+      "CREATE TABLE IF NOT EXISTS $settingsTable(Key TEXT PRIMARY KEY, Value TEXT NULL)");
+
+  Future<String?> getSetting(String key) async {
+    final rows = await _db.query(settingsTable,
+        columns: ['Value'], where: 'Key = ?', whereArgs: [key], limit: 1);
+    return rows.isEmpty ? null : rows.first['Value'] as String?;
+  }
+
+  Future<void> setSetting(String key, String? value) => _db.insert(
+      settingsTable, {'Key': key, 'Value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace);
 
   Future<int> insert(AppLog log) => _db.insert(table, log.toDB());
 

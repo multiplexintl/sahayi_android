@@ -4,6 +4,7 @@ import 'package:sahayi_android/controller/login_controller.dart';
 import 'package:sahayi_android/helper/custom_colors.dart';
 import 'package:sahayi_android/helper/custom_widget.dart';
 import 'package:sahayi_android/widgets/button.dart';
+import '../widgets/admin_tap_detector.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -79,10 +80,13 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 40),
-            Obx(() => Text(
-                  "Sahayi - v${con.version.value}b${con.buildNumber.value}",
-                  style: Theme.of(context).textTheme.labelSmall,
-                ))
+            // 7 taps on the version opens the hidden admin login
+            AdminTapDetector(
+              child: Obx(() => Text(
+                    "Sahayi - v${con.version.value}b${con.buildNumber.value}",
+                    style: Theme.of(context).textTheme.labelSmall,
+                  )),
+            )
           ],
         ),
       ),
