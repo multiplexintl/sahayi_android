@@ -50,22 +50,34 @@ class ServerLogsController extends GetxController {
         top: pageSize,
       );
 
+  /// Loads the summary and the list independently, so one failing does not
+  /// hide the other. A list failure is shown instead of the list.
   Future<void> refreshAll() async {
     loading.value = true;
     error.value = null;
+    final f = filter.value;
     try {
-      final f = filter.value;
-      final results = await Future.wait([
-        repo.summary(from: f.from, toExclusive: f.toExclusive),
-        _page(),
+      await Future.wait([
+        () async {
+          try {
+            summary.value = await repo.summary(from: f.from, toExclusive: f.toExclusive);
+          } catch (e) {
+            AppLogger.warn('AdminLogsError', 'All devices summary could not load: $e');
+          }
+        }(),
+        () async {
+          try {
+            final page = await _page();
+            logs.assignAll(page);
+            hasMore.value = page.length == pageSize;
+          } catch (e, st) {
+            error.value = e.toString();
+            logs.clear();
+            AppLogger.warn('AdminLogsError', 'All devices list could not load: $e',
+                details: 'Device filter: ${device.value ?? 'all'} | Stack: $st');
+          }
+        }(),
       ]);
-      summary.value = results[0] as ServerLogSummary;
-      final page = results[1] as List<ServerLog>;
-      logs.assignAll(page);
-      hasMore.value = page.length == pageSize;
-    } catch (e) {
-      error.value = e.toString();
-      logs.clear();
     } finally {
       loading.value = false;
     }
@@ -80,6 +92,7 @@ class ServerLogsController extends GetxController {
       hasMore.value = page.length == pageSize;
     } catch (e) {
       hasMore.value = false;
+      AppLogger.warn('AdminLogsError', 'All devices tab could not load more: $e');
       Get.snackbar('Could not load more', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       loadingMore.value = false;

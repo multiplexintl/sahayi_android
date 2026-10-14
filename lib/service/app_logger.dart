@@ -92,6 +92,9 @@ class AppLogger {
   /// e.g. "Honeywell EDA52, Android 11 (SDK 30)"
   static String? get deviceSummary => _deviceSummary;
 
+  /// Employee currently attached to every log (null before login).
+  static String? get userId => _userId;
+
   // ---- context setters ----
   static void setUser(String? userId) => _userId = userId;
   static void setCompany(String? company) => _company = company;

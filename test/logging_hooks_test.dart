@@ -75,6 +75,16 @@ void main() {
       expect(log.message, contains('DNS FAILED'));
     });
 
+    test('log upload (POST /v2/Logs) is not logged; dashboard reads (GET) are', () async {
+      final client = LoggingClient(MockClient((_) async => http.Response('[]', 200)));
+      await client.post(Uri.parse('https://api.test/api/v2/Logs'), body: '[]');
+      expect((await logs()).where((e) => e.action == 'Http'), isEmpty);
+
+      await client.get(Uri.parse('https://api.test/api/v2/Logs?top=100'));
+      final http1 = (await logs()).where((e) => e.action == 'Http').toList();
+      expect(http1.single.message, contains('GET https://api.test/api/v2/Logs?top=100'));
+    });
+
     test('describe() categories', () {
       expect(LoggingClient.describe(TimeoutException('t')), startsWith('TIMEOUT'));
       expect(LoggingClient.describe(const HandshakeException('h')),

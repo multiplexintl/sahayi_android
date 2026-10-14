@@ -43,6 +43,9 @@ class AdminService {
 
   static AdminSession? current;
 
+  // True while the admin's ID stands in for "no employee logged in" on logs.
+  static bool _adminIsLogUser = false;
+
   // Scrambled offline PIN (salt + 100,000 x SHA-256). The PIN itself is not
   // stored anywhere; this pair is copied into the device's log database.
   static const String _defaultPinSalt = 'd3dda7980fa5833c3fcaa3c266ba79e0';
@@ -74,6 +77,12 @@ class AdminService {
         final user = jsonDecode(response.body) as Map<String, dynamic>;
         current = AdminSession._(AdminMode.online, user['UserID'] as String?,
             user['UserName'] as String?, password);
+        // Opened from the login screen (no employee logged in): attribute the
+        // dashboard activity to the admin until the dashboard is closed.
+        if (AppLogger.userId == null) {
+          AppLogger.setUser(current!.userId);
+          _adminIsLogUser = true;
+        }
         AppLogger.info('AdminLogin', 'Admin $userId opened the logs dashboard');
         return null;
       }
@@ -129,7 +138,13 @@ class AdminService {
     return 'Wrong PIN.';
   }
 
-  static void logout() => current = null;
+  static void logout() {
+    current = null;
+    if (_adminIsLogUser) {
+      AppLogger.setUser(null);
+      _adminIsLogUser = false;
+    }
+  }
 
   static Future<void> _ensurePinStored(LogDB db) async {
     if (await db.getSetting(pinHashKey) == null) {
@@ -155,6 +170,7 @@ class AdminService {
   @visibleForTesting
   static void resetForTest() {
     current = null;
+    _adminIsLogUser = false;
     _pinFailures = 0;
     _pinLockedUntil = null;
   }
