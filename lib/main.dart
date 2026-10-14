@@ -8,12 +8,14 @@ import 'package:global_configuration/global_configuration.dart';
 import 'controller/splash_controller.dart';
 import 'routes.dart';
 import 'service/app_logger.dart';
+import 'service/log_uploader.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLogger.init();
   _installErrorLogging();
   await GlobalConfiguration().loadFromAsset("config");
+  _startLogUpload();
   AppLogger.info('AppStart', 'App started',
       details: 'Device: ${AppLogger.deviceSummary}, '
           'API: ${GlobalConfiguration().getValue('api_base_url')}');
@@ -23,6 +25,17 @@ Future<void> main() async {
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]).then((value) => runApp(const MyApp()));
+}
+
+/// Sends device logs to the API automatically (see LogUploader).
+void _startLogUpload() {
+  final db = AppLogger.db;
+  if (db == null) return; // logger failed to start; nothing to upload
+  AppLogger.onSaved = LogUploader.notify;
+  LogUploader.start(
+    apiBaseUrl: GlobalConfiguration().getValue('api_base_url'),
+    db: db,
+  );
 }
 
 /// Logs every error that escapes the app's own try/catch blocks.

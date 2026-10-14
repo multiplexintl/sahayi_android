@@ -34,6 +34,12 @@ class AppLogger {
   static String? _deviceSummary;
 
   static const String _installIdKey = 'logInstallId';
+
+  /// Called after each entry is saved (used by LogUploader).
+  static void Function()? onSaved;
+
+  /// The device log database, once [init] has finished.
+  static LogDB? get db => _db;
   static AppLifecycleListener? _lifecycle;
 
   /// Call once in main() before runApp. [db] can be injected in tests.
@@ -146,7 +152,7 @@ class AppLogger {
         if (_pending.length < _maxPending) _pending.add(entry);
         return;
       }
-      _queue = _queue.then((_) => db.insert(entry)).then((_) {},
+      _queue = _queue.then((_) => db.insert(entry)).then((_) => onSaved?.call(),
           onError: (Object e) =>
               dev.log('AppLogger write failed: $e', name: 'AppLog'));
     } catch (e) {
@@ -163,6 +169,7 @@ class AppLogger {
     _pending.clear();
     _queue = Future.value();
     _userId = _company = _screen = null;
+    onSaved = null;
   }
 
   /// Latest entries, newest first (for debugging / a future log viewer).

@@ -72,6 +72,14 @@ class LogDB {
         'UPDATE $table SET Uploaded = 1 WHERE LocalID IN ($marks)', localIds);
   }
 
+  /// Server refused these entries (HTTP 400): never retry them. Uploaded = 2.
+  Future<int> markRejected(List<int> localIds) async {
+    if (localIds.isEmpty) return 0;
+    final marks = List.filled(localIds.length, '?').join(',');
+    return _db.rawUpdate(
+        'UPDATE $table SET Uploaded = 2 WHERE LocalID IN ($marks)', localIds);
+  }
+
   Future<int> count() async =>
       Sqflite.firstIntValue(await _db.rawQuery('SELECT COUNT(*) FROM $table')) ??
       0;

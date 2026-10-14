@@ -19,6 +19,10 @@ class LoggingClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    // Log uploads are not logged themselves, otherwise every upload would
+    // create a new log entry to upload, forever.
+    if (request.url.path.endsWith('/v2/Logs')) return _inner.send(request);
+
     final url = maskUrl(request.url);
     final stopwatch = Stopwatch()..start();
     try {

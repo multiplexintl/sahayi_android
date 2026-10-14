@@ -80,10 +80,11 @@ class AppLog {
         'DeviceID': deviceId,
         'AppVersion': appVersion,
         'Screen': screen,
-        'Action': action,
+        // Server requires Action and Message; never send them empty.
+        'Action': action.trim().isEmpty ? '(none)' : action,
         'DocNum': docNum,
         'DocType': docType,
-        'Message': message,
+        'Message': message.trim().isEmpty ? '(empty)' : message,
         'Details': details,
       };
 
