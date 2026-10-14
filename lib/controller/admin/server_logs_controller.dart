@@ -70,6 +70,11 @@ class ServerLogsController extends GetxController {
             final page = await _page();
             logs.assignAll(page);
             hasMore.value = page.length == pageSize;
+            // Diagnostics: how many rows the server returned for this view
+            AppLogger.info('AdminLogsLoaded',
+                'All devices list: ${page.length} rows (shown: ${logs.length})',
+                details: 'Device: ${device.value ?? 'all'} | Levels: ${f.levels.join(',')} | '
+                    'Actions: ${f.actions.length} | Search: "${searchController.text}"');
           } catch (e, st) {
             error.value = e.toString();
             logs.clear();

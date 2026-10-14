@@ -11,6 +11,10 @@ import 'log_widgets.dart';
 /// logs on the server.
 class AllDevicesTab extends StatefulWidget {
   final AdminLogsRepo? repo; // injectable for tests
+
+  /// Default repository (tests can replace it).
+  static AdminLogsRepo Function() defaultRepo = AdminLogsRepo.new;
+
   const AllDevicesTab({super.key, this.repo});
 
   @override
@@ -28,7 +32,7 @@ class _AllDevicesTabState extends State<AllDevicesTab> with AutomaticKeepAliveCl
   @override
   void initState() {
     super.initState();
-    con = Get.put(ServerLogsController(widget.repo ?? AdminLogsRepo()), tag: _tag);
+    con = Get.put(ServerLogsController(widget.repo ?? AllDevicesTab.defaultRepo()), tag: _tag);
     _scroll.addListener(() {
       if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 300) con.loadMore();
     });
