@@ -20,8 +20,6 @@ Future<void> main() async {
       details: 'Device: ${AppLogger.deviceSummary}, '
           'API: ${GlobalConfiguration().getValue('api_base_url')}');
 
-  AppLogger.watchLifecycle();
-
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]).then((value) => runApp(const MyApp()));

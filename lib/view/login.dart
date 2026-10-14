@@ -16,78 +16,88 @@ class LoginScreen extends StatelessWidget {
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         backgroundColor: CustomColors.scaffoldColor,
-        body: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Center(
-              child: SizedBox(
-                height: 100,
-                width: 100,
-                child: Image.asset("assets/images/helper_1.png"),
-              ),
-            ),
-            SizedBox(height: 50),
-            SizedBox(
-              height: 79,
-              width: context.width - 100,
-              child: TextFormField(
-                controller: con.idController,
-                onChanged: (value) {
-                  con.idController.text = value.toUpperCase();
-                },
-                decoration: CustomWidget()
-                    .inputDecoration(context: context, labelText: "Emp ID"),
-              ),
-            ),
-            SizedBox(
-              height: 79,
-              width: context.width - 100,
-              child: Obx(() => TextFormField(
-                    controller: con.pwdController,
-                    obscureText: con.isPasswordVisible.value,
-                    decoration: CustomWidget()
-                        .inputDecoration(
-                            context: context, labelText: "Password")
-                        .copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(con.isPasswordVisible.value
-                                ? Icons.visibility_off
-                                : Icons.visibility),
-                            onPressed: () => con.isPasswordVisible.toggle(),
-                          ),
-                        ),
-                  )),
-            ),
-            Obx(
-              () => ButtonWidget(
-                title: "Login",
-                width: 250,
-                height: 48,
-                onPressed: con.isLoading.value
-                    ? null
-                    : () {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        con.getEmployee();
+        // Scrolls when the keyboard takes space (small scanner screens),
+        // otherwise stays centred as before.
+        body: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(
+                    child: SizedBox(
+                      height: 100,
+                      width: 100,
+                      child: Image.asset("assets/images/helper_1.png"),
+                    ),
+                  ),
+                  SizedBox(height: 50),
+                  SizedBox(
+                    height: 79,
+                    width: context.width - 100,
+                    child: TextFormField(
+                      controller: con.idController,
+                      onChanged: (value) {
+                        con.idController.text = value.toUpperCase();
                       },
-                child: con.isLoading.value
-                    ? SizedBox(
-                        height: 25,
-                        width: 25,
-                        child: CircularProgressIndicator.adaptive(),
-                      )
-                    : null,
+                      decoration: CustomWidget().inputDecoration(
+                          context: context, labelText: "Emp ID"),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 79,
+                    width: context.width - 100,
+                    child: Obx(() => TextFormField(
+                          controller: con.pwdController,
+                          obscureText: con.isPasswordVisible.value,
+                          decoration: CustomWidget()
+                              .inputDecoration(
+                                  context: context, labelText: "Password")
+                              .copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(con.isPasswordVisible.value
+                                      ? Icons.visibility_off
+                                      : Icons.visibility),
+                                  onPressed: () =>
+                                      con.isPasswordVisible.toggle(),
+                                ),
+                              ),
+                        )),
+                  ),
+                  Obx(
+                    () => ButtonWidget(
+                      title: "Login",
+                      width: 250,
+                      height: 48,
+                      onPressed: con.isLoading.value
+                          ? null
+                          : () {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              con.getEmployee();
+                            },
+                      child: con.isLoading.value
+                          ? SizedBox(
+                              height: 25,
+                              width: 25,
+                              child: CircularProgressIndicator.adaptive(),
+                            )
+                          : null,
+                    ),
+                  ),
+                  SizedBox(height: 40),
+                  // 7 taps on the version opens the hidden admin login
+                  AdminTapDetector(
+                    child: Obx(() => Text(
+                          "Sahayi - v${con.version.value}b${con.buildNumber.value}",
+                          style: Theme.of(context).textTheme.labelSmall,
+                        )),
+                  )
+                ],
               ),
             ),
-            SizedBox(height: 40),
-            // 7 taps on the version opens the hidden admin login
-            AdminTapDetector(
-              child: Obx(() => Text(
-                    "Sahayi - v${con.version.value}b${con.buildNumber.value}",
-                    style: Theme.of(context).textTheme.labelSmall,
-                  )),
-            )
-          ],
+          ),
         ),
       ),
     );

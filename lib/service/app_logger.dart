@@ -2,7 +2,7 @@ import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -40,7 +40,6 @@ class AppLogger {
 
   /// The device log database, once [init] has finished.
   static LogDB? get db => _db;
-  static AppLifecycleListener? _lifecycle;
 
   /// Call once in main() before runApp. [db] can be injected in tests.
   static Future<void> init({LogDB? db}) async {
@@ -92,13 +91,6 @@ class AppLogger {
 
   /// e.g. "Honeywell EDA52, Android 11 (SDK 30)"
   static String? get deviceSummary => _deviceSummary;
-
-  /// Logs when the app goes to the background, comes back, or is closed.
-  static void watchLifecycle() {
-    _lifecycle ??= AppLifecycleListener(
-      onStateChange: (state) => info('Lifecycle', 'App is now ${state.name}'),
-    );
-  }
 
   // ---- context setters ----
   static void setUser(String? userId) => _userId = userId;
