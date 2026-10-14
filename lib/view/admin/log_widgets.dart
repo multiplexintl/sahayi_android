@@ -7,8 +7,9 @@ import '../../model/log_filter.dart';
 
 /// Shared pieces for the logs dashboard tabs.
 
-final DateFormat logTimeFormat = DateFormat('dd-MM-yyyy HH:mm:ss');
-final DateFormat logShortTimeFormat = DateFormat('dd-MM HH:mm:ss');
+/// Dashboard date format, e.g. 14/10/2026 02:35 PM
+final DateFormat logTimeFormat = DateFormat('dd/MM/yyyy hh:mm a');
+final DateFormat logShortTimeFormat = logTimeFormat;
 
 Color levelColor(String? level) => switch (level) {
       'ERROR' => Colors.red,
@@ -248,7 +249,7 @@ class ActiveDatesLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (filter.from == null) return const SizedBox.shrink();
-    final f = DateFormat('dd-MM-yyyy');
+    final f = DateFormat('dd/MM/yyyy');
     return Padding(
       padding: const EdgeInsets.only(left: 12),
       child: Row(children: [
