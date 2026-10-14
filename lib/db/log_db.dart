@@ -99,6 +99,79 @@ class LogDB {
         'UPDATE $table SET Uploaded = 2 WHERE LocalID IN ($marks)', localIds);
   }
 
+  /// Dashboard search, newest first. All filters optional.
+  /// [from]/[to] use the device time (ClientTime); [to] is exclusive.
+  /// Paging: pass the smallest LocalID of the previous page as [beforeId].
+  Future<List<AppLog>> search({
+    String? level,
+    String? text,
+    DateTime? from,
+    DateTime? to,
+    int? beforeId,
+    int limit = 100,
+  }) async {
+    final where = <String>[];
+    final args = <Object?>[];
+    if (level != null && level.isNotEmpty) {
+      where.add('Level = ?');
+      args.add(level.toUpperCase());
+    }
+    if (from != null) {
+      where.add('ClientTime >= ?');
+      args.add(from.toIso8601String());
+    }
+    if (to != null) {
+      where.add('ClientTime < ?');
+      args.add(to.toIso8601String());
+    }
+    if (beforeId != null) {
+      where.add('LocalID < ?');
+      args.add(beforeId);
+    }
+    final t = text?.trim() ?? '';
+    if (t.isNotEmpty) {
+      // % and _ in the search word are matched literally
+      final like =
+          '%${t.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_')}%';
+      where.add(r"(Action LIKE ? ESCAPE '\' OR Message LIKE ? ESCAPE '\' OR "
+          r"Screen LIKE ? ESCAPE '\' OR DocNum LIKE ? ESCAPE '\' OR UserID LIKE ? ESCAPE '\')");
+      args.addAll(List.filled(5, like));
+    }
+    final rows = await _db.query(table,
+        where: where.isEmpty ? null : where.join(' AND '),
+        whereArgs: args,
+        orderBy: 'LocalID DESC',
+        limit: limit);
+    return rows.map(AppLog.fromDB).toList();
+  }
+
+  /// Counts for the dashboard header.
+  Future<LogStats> stats() async {
+    final row = (await _db.rawQuery('''SELECT COUNT(*) AS Total,
+          SUM(CASE WHEN Uploaded = 0 THEN 1 ELSE 0 END) AS Waiting,
+          SUM(CASE WHEN Uploaded = 1 THEN 1 ELSE 0 END) AS Sent,
+          SUM(CASE WHEN Uploaded = 2 THEN 1 ELSE 0 END) AS Rejected,
+          SUM(CASE WHEN Level = 'ERROR' THEN 1 ELSE 0 END) AS Errors,
+          SUM(CASE WHEN Level = 'WARN' THEN 1 ELSE 0 END) AS Warnings,
+          MIN(ClientTime) AS Oldest, MAX(ClientTime) AS Newest
+        FROM $table''')).first;
+    int n(String k) => (row[k] as int?) ?? 0;
+    return LogStats(
+      total: n('Total'),
+      waiting: n('Waiting'),
+      sent: n('Sent'),
+      rejected: n('Rejected'),
+      errors: n('Errors'),
+      warnings: n('Warnings'),
+      oldest: row['Oldest'] == null ? null : DateTime.parse(row['Oldest'] as String),
+      newest: row['Newest'] == null ? null : DateTime.parse(row['Newest'] as String),
+    );
+  }
+
+  /// Deletes logs from this device. [onlySent] keeps logs not yet uploaded.
+  Future<int> clear({required bool onlySent}) =>
+      _db.delete(table, where: onlySent ? 'Uploaded <> 0' : null);
+
   Future<int> count() async =>
       Sqflite.firstIntValue(await _db.rawQuery('SELECT COUNT(*) FROM $table')) ??
       0;
@@ -116,4 +189,19 @@ class LogDB {
   }
 
   Future<void> close() => _db.close();
+}
+
+class LogStats {
+  final int total, waiting, sent, rejected, errors, warnings;
+  final DateTime? oldest, newest;
+  const LogStats({
+    required this.total,
+    required this.waiting,
+    required this.sent,
+    required this.rejected,
+    required this.errors,
+    required this.warnings,
+    this.oldest,
+    this.newest,
+  });
 }

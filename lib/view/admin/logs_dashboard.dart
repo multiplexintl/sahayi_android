@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../service/admin_service.dart';
+import 'device_logs_tab.dart';
 
 /// Hidden logs dashboard. Online admin: "This device" + "All devices".
 /// Offline PIN: "This device" only. Leaving the screen ends the admin session.
@@ -68,7 +69,7 @@ class _LogsDashboardScreenState extends State<LogsDashboardScreen> {
         ),
         body: TabBarView(
           children: [
-            const _ComingSoon(text: "This device's logs: next step"),
+            const DeviceLogsTab(),
             if (session.canSeeAllDevices)
               const _ComingSoon(text: 'All devices: coming after that'),
           ],

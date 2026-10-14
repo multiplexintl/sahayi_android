@@ -37,6 +37,11 @@ class LogUploader {
   static bool _runAgain = false;
   static DateTime? _pausedUntil;
 
+  /// For the dashboard: when the server last accepted logs, and the last outcome.
+  static DateTime? lastSuccessAt;
+  static String? lastResult;
+  static DateTime? get pausedUntil => _pausedUntil;
+
   /// [apiBaseUrl] like "https://testsahayiapi.multiroute.ae/api/".
   static void start({
     required String apiBaseUrl,
@@ -59,10 +64,12 @@ class LogUploader {
   }
 
   /// Sends everything pending now. Returns how many entries the server accepted.
-  static Future<int> uploadNow() async {
+  /// [force] ignores a pause (used by the dashboard's "Upload now" button).
+  static Future<int> uploadNow({bool force = false}) async {
     final endpoint = _endpoint;
     final db = _db;
     if (endpoint == null || db == null) return 0;
+    if (force) _pausedUntil = null;
     if (_pausedUntil != null && DateTime.now().isBefore(_pausedUntil!)) return 0;
     if (_busy) {
       _runAgain = true;
@@ -87,10 +94,13 @@ class LogUploader {
         if (response.statusCode == 200) {
           await db.markUploaded(ids);
           accepted += ids.length;
+          lastSuccessAt = DateTime.now();
+          lastResult = 'Sent $accepted';
           continue;
         }
         if (response.statusCode == 404 || response.statusCode == 405) {
           _pausedUntil = DateTime.now().add(notDeployedPause);
+          lastResult = 'Server has no log endpoint (HTTP ${response.statusCode}); paused 30 min';
           dev.log('Log upload: endpoint not on this server, pausing 30 min',
               name: 'LogUploader');
           break;
@@ -98,17 +108,20 @@ class LogUploader {
         if (response.statusCode == 400) {
           // The server will never accept these; skip them so the queue moves on.
           await db.markRejected(ids);
+          lastResult = '${ids.length} rejected by server';
           dev.log('Log upload: ${ids.length} entries rejected: ${response.body}',
               name: 'LogUploader');
           continue;
         }
         dev.log('Log upload: HTTP ${response.statusCode}, will retry',
             name: 'LogUploader');
+        lastResult = 'Server error HTTP ${response.statusCode}; will retry';
         break; // server error: next periodic run tries again
       }
     } catch (e) {
       // Offline, timeout, etc. Logs stay on the device for the next attempt.
       dev.log('Log upload failed, will retry: $e', name: 'LogUploader');
+      lastResult = 'Not sent (no connection?); will retry';
     } finally {
       _busy = false;
     }
@@ -130,6 +143,8 @@ class LogUploader {
     _client = () => HttpClientHelper().getClient();
     _busy = _runAgain = false;
     _pausedUntil = null;
+    lastSuccessAt = null;
+    lastResult = null;
     debounce = const Duration(seconds: 3);
   }
 }

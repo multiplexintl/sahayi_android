@@ -14,7 +14,10 @@ class AppLog {
   final String? docType;
   final String message;
   final String? details;
-  final bool uploaded;
+
+  /// 0 = waiting to upload, 1 = sent to server, 2 = rejected by server.
+  final int uploadState;
+  bool get uploaded => uploadState == 1;
 
   const AppLog({
     this.localId,
@@ -30,7 +33,7 @@ class AppLog {
     this.docType,
     required this.message,
     this.details,
-    this.uploaded = false,
+    this.uploadState = 0,
   });
 
   // Same limits as dbo.AppLog, so the server never has to cut anything.
@@ -50,7 +53,7 @@ class AppLog {
         'DocType': _cut(docType, 1),
         'Message': _cut(message, 1000)!,
         'Details': details,
-        'Uploaded': uploaded ? 1 : 0,
+        'Uploaded': uploadState,
       };
 
   factory AppLog.fromDB(Map<String, dynamic> row) => AppLog(
@@ -67,7 +70,7 @@ class AppLog {
         docType: row['DocType'] as String?,
         message: row['Message'] as String,
         details: row['Details'] as String?,
-        uploaded: (row['Uploaded'] as int? ?? 0) == 1,
+        uploadState: row['Uploaded'] as int? ?? 0,
       );
 
   /// Body format for POST /api/v2/Logs.

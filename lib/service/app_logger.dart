@@ -87,6 +87,9 @@ class AppLogger {
     } catch (_) {}
   }
 
+  /// e.g. "EDA52-3f9a1c2b"
+  static String? get deviceId => _deviceId;
+
   /// e.g. "Honeywell EDA52, Android 11 (SDK 30)"
   static String? get deviceSummary => _deviceSummary;
 
