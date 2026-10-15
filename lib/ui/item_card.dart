@@ -4,7 +4,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
 import 'badges.dart';
 
-enum ItemState { todo, partial, active, done, error }
+/// [plain]: neutral card with an optional neutral label (reports, history).
+enum ItemState { todo, partial, active, done, error, plain }
 
 /// One line of a document: name, codes, quantity and a status chip.
 /// [ItemState.active] (amber) marks the item being scanned right now.
@@ -42,6 +43,7 @@ class ItemCard extends StatelessWidget {
       ItemState.error => (c.dangerSoft, c.dangerBorder, 1.0),
       ItemState.todo => (c.surface, c.divider, 1.0),
       ItemState.partial => (c.surface, c.divider, 1.0),
+      ItemState.plain => (c.surface, c.divider, 1.0),
     };
     final chip = switch (state) {
       ItemState.done => StatusChip.done(statusLabel ?? 'Done', small: true),
@@ -50,6 +52,9 @@ class ItemCard extends StatelessWidget {
       ItemState.error => StatusChip.error(statusLabel ?? 'Mismatch', small: true),
       ItemState.todo => StatusChip.todo(statusLabel ?? 'To do', small: true),
       ItemState.partial => StatusChip.progress(statusLabel ?? 'Partial', small: true),
+      ItemState.plain => (statusLabel == null || statusLabel!.isEmpty)
+          ? const SizedBox.shrink()
+          : StatusChip(kind: StatusKind.neutral, label: statusLabel!, small: true),
     };
 
     return Material(

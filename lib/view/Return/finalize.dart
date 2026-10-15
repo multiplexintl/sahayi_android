@@ -78,7 +78,8 @@ class FinalizeReturnScreen extends StatelessWidget {
           showModalBottomSheet(
             context: context,
             useSafeArea: true,
-            builder: (context) => Padding(
+            isScrollControlled: true,
+            builder: (context) => SingleChildScrollView(
               padding:
                   const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.xl),
               child: Column(

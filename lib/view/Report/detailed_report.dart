@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sahayi_android/controller/report_controller.dart';
-import 'package:sahayi_android/helper/custom_widget.dart';
-import '../../helper/custom_colors.dart';
+import 'package:sahayi_android/model/invoice/doc_detail.dart';
 
+import '../../ui/ui.dart';
+
+/// Report details (Version 2): document summary + its lines.
+/// The barcode search now FILTERS the lines (Version 1 scrolled to them).
 class DetailedReportPage extends StatefulWidget {
   const DetailedReportPage({super.key});
 
@@ -12,216 +15,150 @@ class DetailedReportPage extends StatefulWidget {
 }
 
 class _DetailedReportPageState extends State<DetailedReportPage> {
-  var con = Get.find<ReportController>();
-  final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
-  final ScrollController _scrollController = ScrollController();
+  final con = Get.find<ReportController>();
+  final _search = TextEditingController();
+  bool _searching = false;
+  String _query = '';
 
-  void _toggleSearch() {
-    setState(() {
-      _isSearching = !_isSearching;
-      if (!_isSearching) {
-        _searchController.clear();
-      }
-    });
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
-  void _scrollToBarcode(String barcode) {
-    if (con.detailedReport.value?.docDetails == null) return;
+  void _toggleSearch() => setState(() {
+        _searching = !_searching;
+        if (!_searching) {
+          _search.clear();
+          _query = '';
+        }
+      });
 
-    int index = con.detailedReport.value!.docDetails!.indexWhere(
-        (item) => item.barcode?.toLowerCase() == barcode.toLowerCase());
+  static String title(String? docType) => switch (docType) {
+        'R' => 'Return report',
+        'I' => 'Invoice report',
+        _ => 'Transfer report',
+      };
 
-    if (index != -1) {
-      _scrollController.animateTo(
-        index * 160.0, // Adjust based on your item height
-        duration: Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      CustomWidget.customSnackBar(
-        title: "Not Found",
-        message: "No matching barcode found!",
-        backgroundColor: Colors.red,
-      );
-    }
+  void _showLine(BuildContext context, DocDetail item, int no) {
+    showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (context) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.xl),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(item.partName ?? '', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: Space.md),
+          KeyValueRow('Line', '$no'),
+          KeyValueRow('Part no.', item.partNum),
+          KeyValueRow('Brand', item.brand),
+          KeyValueRow('Barcode', item.barcode),
+          KeyValueRow('Quantity', '${item.checkQty ?? 0}'),
+          if ((item.reasonCode ?? '').isNotEmpty) KeyValueRow('Reason', '${item.reasonCode} · ${item.reasonName ?? ''}'),
+          if (item.docType == 'R' && (item.reasonCode == 'NRE' || item.reasonCode == 'EXP'))
+            KeyValueRow('Expiry date', item.expiryDate),
+          const SizedBox(height: Space.lg),
+          AppButton.secondary(label: 'Close', onPressed: () => Navigator.of(context).pop()),
+        ]),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        appBar: AppBar(
-          title: _isSearching
-              ? TextField(
-                  controller: _searchController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: "Scan or Enter Barcode...",
-                    border: InputBorder.none,
-                  ),
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: _scrollToBarcode,
-                )
-              : Text("Report"),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => Get.back(),
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(_isSearching ? Icons.close : Icons.search),
-              onPressed: _toggleSearch,
-            ),
-          ],
-        ),
-        backgroundColor: CustomColors.scaffoldColor,
-        body: Obx(
-          () => con.isLoadingDetailed.value
-              ? Center(child: CircularProgressIndicator.adaptive())
-              : con.detailedReport.value == null
-                  ? Center(child: Text("No Details Found, Please try again."))
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Column(
-                        children: [
-                          _buildReportHeader(context),
-                          _buildItemDetailsHeader(context),
-                          Expanded(child: _buildItemList()),
-                        ],
-                      ),
+    return V2Screen(
+      child: Builder(builder: (context) {
+        final t = Theme.of(context).textTheme;
+        return GestureDetector(
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: Obx(() {
+            final doc = con.detailedReport.value;
+            return Scaffold(
+              appBar: AppTopBar(
+                title: doc?.docNum ?? 'Report',
+                badge: doc == null ? null : DocTypeBadge(doc.docType),
+                subtitle: doc == null ? null : title(doc.docType),
+                actions: [
+                  if (doc != null)
+                    AppIconButton(
+                      icon: _searching ? Icons.close_rounded : Icons.search_rounded,
+                      tooltip: _searching ? 'Close search' : 'Find a barcode',
+                      onPressed: _toggleSearch,
                     ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReportHeader(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Text(
-            con.detailedReport.value?.docType == 'R'
-                ? 'Return Report'
-                : con.detailedReport.value?.docType == 'I'
-                    ? "Invoice Report"
-                    : 'Transfer Report',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            itemWidget(context, "Company", con.detailedReport.value?.company),
-            itemWidget(context, "Doc Num", con.detailedReport.value?.docNum),
-            itemWidget(context, "Doc Date", con.detailedReport.value?.docDate),
-            itemWidget(context, "Cust ID", con.detailedReport.value?.custID),
-            itemWidget(
-                context, "Cust Name", con.detailedReport.value?.custName),
-            itemWidget(
-                context, "Scan Time", con.detailedReport.value?.scanTime),
-            itemWidget(context, "Scanned By", con.detailedReport.value?.userId),
-            itemWidget(
-                context,
-                con.detailedReport.value?.docType == 'R'
-                    ? 'Returned By'
-                    : 'Picked By',
-                con.detailedReport.value?.pickedBy),
-            itemWidget(
-              context,
-              "Status",
-              con.detailedReport.value?.stat == 'D'
-                  ? 'Downloaded'
-                  : 'Completed',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildItemDetailsHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Text(
-        "Item Details",
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-    );
-  }
-
-  Widget _buildItemList() {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: EdgeInsets.only(top: 10),
-      shrinkWrap: true,
-      itemCount: con.detailedReport.value?.docDetails?.length ?? 0,
-      itemBuilder: (context, index) {
-        var item = con.detailedReport.value!.docDetails?[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 30),
-          child: Material(
-            elevation: 10,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: index.isEven
-                    ? Colors.amber.shade200
-                    : Colors.blueAccent.shade200,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  itemWidget(context, "Sl No", "${index + 1}"),
-                  itemWidget(context, "Part Num", item?.partNum),
-                  itemWidget(context, "Part Name", item?.partName),
-                  itemWidget(context, "Brand", item?.brand),
-                  itemWidget(context, "Barcode", item?.barcode),
-                  itemWidget(context, "Quantity", "${item?.checkQty}"),
-                  if (item!.reasonCode!.isNotEmpty)
-                    itemWidget(context, "Reason Code", item.reasonCode),
-                  if (item.reasonName!.isNotEmpty)
-                    itemWidget(context, "Reason Name", item.reasonName),
-                  if (item.docType == 'R' &&
-                      (item.reasonCode == 'NRE' || item.reasonCode == 'EXP'))
-                    itemWidget(context, "Expiry Date", item.expiryDate),
                 ],
               ),
-            ),
-          ),
+              body: con.isLoadingDetailed.value
+                  ? const Center(child: CircularProgressIndicator())
+                  : doc == null
+                      ? const EmptyState(title: 'No details found', message: 'Please go back and try again.')
+                      : Builder(builder: (context) {
+                          final all = doc.docDetails ?? const <DocDetail>[];
+                          final q = _query.trim().toLowerCase();
+                          final shown = q.isEmpty
+                              ? all
+                              : all.where((i) => (i.barcode ?? '').toLowerCase().contains(q)).toList();
+                          return ListView(
+                            padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
+                            children: [
+                              if (_searching) ...[
+                                AppTextField(
+                                  controller: _search,
+                                  autofocus: true,
+                                  hint: 'Scan or type a barcode',
+                                  prefixIcon: Icons.qr_code_scanner_rounded,
+                                  onChanged: (v) => setState(() => _query = v),
+                                ),
+                                const SizedBox(height: Space.md),
+                              ],
+                              AppCard(
+                                radius: Radii.lg,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: Space.sm),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4, bottom: 2),
+                                    child: doc.stat == 'D'
+                                        ? const StatusChip.progress('Downloaded')
+                                        : const StatusChip.done('Completed'),
+                                  ),
+                                  KeyValueRow('Company', doc.company),
+                                  KeyValueRow('Doc date', doc.docDate),
+                                  KeyValueRow('Customer', '${doc.custName ?? ''} · ${doc.custID ?? ''}'),
+                                  KeyValueRow('Scan time', doc.scanTime),
+                                  KeyValueRow('Scanned by', doc.userId),
+                                  KeyValueRow(doc.docType == 'R' ? 'Returned by' : 'Picked by', doc.pickedBy),
+                                ]),
+                              ),
+                              SectionLabel(
+                                'Items',
+                                padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
+                                trailing: Text(
+                                    q.isEmpty ? '${all.length}' : '${shown.length} of ${all.length}',
+                                    style: t.labelSmall),
+                              ),
+                              if (shown.isEmpty)
+                                EmptyState(title: 'No line with barcode "$_query"', image: 'assets/images/helper_1.png')
+                              else
+                                for (final item in shown)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: Space.sm),
+                                    child: ItemCard(
+                                      leading: '${all.indexOf(item) + 1}',
+                                      title: item.partName ?? '',
+                                      subtitle: '${item.partNum ?? ''} · ${item.barcode ?? ''}',
+                                      quantity: '${item.checkQty ?? 0}',
+                                      state: ItemState.plain,
+                                      statusLabel: item.reasonCode,
+                                      onTap: () => _showLine(context, item, all.indexOf(item) + 1),
+                                    ),
+                                  ),
+                            ],
+                          );
+                        }),
+            );
+          }),
         );
-      },
-    );
-  }
-
-  Widget itemWidget(BuildContext context, String title, String? value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 110,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              Text(' :  '),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value ?? "-",
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        ),
-      ],
+      }),
     );
   }
 }
