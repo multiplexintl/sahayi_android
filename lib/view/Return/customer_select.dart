@@ -1,443 +1,363 @@
-import 'dart:developer';
+import 'dart:async';
 
-import 'package:drop_down_search_field/drop_down_search_field.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sahayi_android/controller/return_controller.dart';
 import 'package:sahayi_android/db/db.dart';
+import 'package:sahayi_android/model/company.dart';
+import 'package:sahayi_android/model/invoice/doc_master.dart';
 import 'package:sahayi_android/model/pickers/pickers.dart';
 import 'package:sahayi_android/model/return/customer.dart';
-import 'package:sahayi_android/widgets/button.dart';
 
-import '../../helper/custom_colors.dart';
-import '../../helper/custom_widget.dart';
-import '../../model/company.dart';
-import '../../model/user.dart';
-import '../../widgets/bottom_bar.dart';
-import '../../widgets/drop_down.dart';
-import '../../widgets/year_picker.dart';
+import '../../ui/ui.dart';
 
+/// Return start (Version 2): new-return form + unfinished returns.
+/// Same controller calls as Version 1: onSubmit(null) starts, onSubmit(doc)
+/// resumes, removeUnfinished(doc) deletes, clearCustSelction() clears.
 class CustomerSelectScreen extends StatelessWidget {
   const CustomerSelectScreen({super.key});
 
+  static final _dateFormat = DateFormat('dd-MM-yyyy'); // format the controller expects
+
   @override
   Widget build(BuildContext context) {
-    var con = Get.find<ReturnController>();
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: CustomColors.scaffoldColor,
-        bottomNavigationBar: BottomBarWidget(),
-        appBar: CustomWidget.customAppBar(
-          "Return",
-          connectivity: false,
-          logout: null,
-          back: true,
-        ),
-        resizeToAvoidBottomInset: false,
-        body: Padding(
-          padding: const EdgeInsets.only(left: 15, right: 15, top: 20),
-          child: Column(
-            children: [
-              Obx(
-                () => CustomDropdown<Company>(
-                  items: con.companyList,
-                  onChanged: con.syncIsLoading.value
-                      ? null
-                      : (value) {
-                          con.selectComapny(value);
-                        },
-                  selectedItem: con.selectedCompany.value,
-                  height: 53,
-                  width: context.width,
-                  isDisabled: con.syncIsLoading.value,
-                  getItemLabel: (company) => company?.companyName ?? '',
-                  label: "Select Company",
-                ),
-              ),
-              SizedBox(height: 10),
-              SizedBox(
-                height: 60,
-                child: Obx(
-                  () => DropDownSearchField<Customer>(
-                    displayAllSuggestionWhenTap: true,
-                    isMultiSelectDropdown: false,
-                    debounceDuration: Duration(milliseconds: 500),
-                    textFieldConfiguration: TextFieldConfiguration(
-                      controller: con.custController,
-                      keyboardType: TextInputType.name,
-                      style: Theme.of(context).textTheme.labelLarge,
-                      enabled: con.selectedCompany.value != null,
-                      decoration: CustomWidget().inputDecoration(
-                        context: context,
-                        labelText: "Customer",
-                        radius: 16,
-                      ),
-                    ),
-                    hideOnEmpty: true,
-                    hideOnLoading: false,
-                    suggestionsCallback: (pattern) async {
-                      return await con.getSuggestions(pattern);
-                    },
-                    itemBuilder: (context, suggestion) {
-                      return ListTile(
-                        leading: Icon(Icons.business),
-                        title: Text(suggestion.custId!),
-                        subtitle: Text('${suggestion.custName}'),
-                      );
-                    },
-                    onSuggestionSelected: (suggestion) {
-                      con.onCustomerSelected(suggestion);
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 60,
-                child: Obx(
-                  () => TextField(
-                    controller: con.docNumController,
-                    enabled: con.selectedCompany.value != null,
-                    decoration: CustomWidget().inputDecoration(
-                        context: context, labelText: "Doc Number", radius: 16),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5),
-              SizedBox(
-                height: 60,
-                child: Obx(
-                  () => TextField(
-                    controller: con.docDateController,
-                    readOnly: true,
-                    enabled: con.selectedCompany.value != null,
-                    onTap: () {
-                      DateTime today = DateTime.now();
+    final con = Get.find<ReturnController>();
+    return V2Screen(
+      child: Builder(builder: (context) {
+        final c = context.c;
+        final t = Theme.of(context).textTheme;
 
-                      DateTime maxAllowedDate =
-                          DateTime(today.year, today.month, today.day);
-                      log(maxAllowedDate.toString());
+        Future<void> pickDate() async {
+          final today = DateTime.now();
+          final max = DateTime(today.year, today.month, today.day);
+          DateTime? initial;
+          try {
+            initial = con.docDateController.text.isEmpty ? null : _dateFormat.parse(con.docDateController.text);
+          } catch (_) {}
+          final picked = await showDatePicker(
+            context: context,
+            firstDate: DateTime(today.year - 2, today.month, today.day),
+            lastDate: max,
+            initialDate: initial ?? max,
+            helpText: 'Document date',
+          );
+          if (picked == null) return;
+          final text = _dateFormat.format(picked);
+          con.docDateController.text = text;
+          con.docDate.value = text;
+          con.update();
+        }
 
-                      showYearMonthPicker(
-                        minimumYear: DateTime.now().year -
-                            2, // Allow dates up to 100 years ago
-                        maximumYear: DateTime.now().year, // 12 years or older+
-                        maximumDate: maxAllowedDate,
-                        minimumDate:
-                            DateTime(today.year - 2, today.month, today.day),
-                        dateNeeded: true,
-                        initialDateTime:
-                            con.docDateController.value.text.isNotEmpty
-                                ? DateFormat("dd-MM-yyyy")
-                                    .parse(con.docDateController.value.text)
-                                : maxAllowedDate,
-                        onTapCancel: () {
-                          con.docDateController.clear();
-                          FocusManager.instance.primaryFocus?.unfocus();
-                          Get.back();
-                        },
-                        onTapSubmit: () {
-                          log(con.docDateController.value.text);
-                          if (con.docDateController.value.text.isEmpty) {
-                            String formattedDate =
-                                DateFormat("dd-MM-yyyy").format(DateTime.now());
-                            con.docDateController.text = formattedDate;
-                            con.docDate.value = formattedDate;
-                          }
-                          Get.back();
-                        },
-                        onDateTimeChanged: (date) {
-                          log(date.toString());
-                          String formattedDate =
-                              DateFormat("dd-MM-yyyy").format(date);
-                          con.docDateController.text = formattedDate;
-                          con.docDate.value = formattedDate;
-                          con.update();
-                        },
-                      );
-                    },
-                    decoration: CustomWidget().inputDecoration(
-                        context: context,
-                        labelText: "Document Date",
-                        radius: 16),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5),
-              Obx(
-                () => CustomDropdown<Pickers?>(
-                  items: con.driverList,
-                  onChanged: con.selectIsLoading.value
-                      ? null
-                      : (value) {
-                          con.selectDriver(value);
-                        },
-                  selectedItem: con.selectedDriver.value,
-                  height: 53,
-                  width: context.width,
-                  isDisabled: con.selectIsLoading.value ||
-                      con.selectedCompany.value == null,
-                  getItemLabel: (driver) => driver?.name ?? '',
-                  label: "Select Driver/Helper",
-                ),
-              ),
-              SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ButtonWidget(
-                    title: "Submit",
-                    width: context.width - (context.width / 2) - 30,
-                    backgroundColor: Colors.green,
-                    onPressed: () async {
-                      con.onSubmit(null);
-                    },
-                    onLongPress: () async {
-                      await DBHelper.listColumnsInTable(DBHelper.docMaster);
-                      await DBHelper.listColumnsInTable(DBHelper.docDetail);
-                    },
-                  ),
-                  ButtonWidget(
-                    title: "Clear",
-                    width: context.width - (context.width / 2) - 30,
-                    backgroundColor: Colors.red,
-                    onPressed: () {
-                      con.clearCustSelction();
-                      // con.getUnfinishedDocs();
-                    },
-                    // onLongPress: () => con.clearUnfinished(),
-                  )
-                ],
-              ),
-              SizedBox(height: 5),
-              // Divider(
-              //   color: Colors.black,
-              //   thickness: 1.5,
-              // ),
-              Obx(() => Visibility(
-                    visible: con.unFinishedDocs.isNotEmpty,
-                    child: Text(
-                      "Not Finished Documnets",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            decoration: TextDecoration.underline,
-                            decorationThickness: 1.5,
-                            decorationColor: Colors.black,
-                            decorationStyle: TextDecorationStyle.solid,
+        Future<void> deleteUnfinished(DocMaster doc) async {
+          final ok = await showConfirmSheet(
+            context: context,
+            title: 'Delete this unfinished return?',
+            message: '${doc.custID} · ${doc.custName}\nDocument ${doc.docNum}\n\n'
+                'Its scanned items are removed from this scanner.',
+            confirmLabel: 'Delete',
+            danger: true,
+          );
+          if (ok) await con.removeUnfinished(doc);
+        }
+
+        return GestureDetector(
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: Scaffold(
+            appBar: AppTopBar(
+              title: 'New return',
+              badge: const DocTypeBadge('R'),
+              actions: [if (kDebugMode) const _DeveloperMenu()],
+            ),
+            body: ListView(
+              padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
+              children: [
+                AppCard(
+                  child: GetBuilder<ReturnController>(builder: (_) {
+                    return Obx(() {
+                      final hasCompany = con.selectedCompany.value != null;
+                      final busy = con.selectIsLoading.value;
+                      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        AppSelectField<Company>(
+                          label: 'Company',
+                          placeholder: 'Select company',
+                          icon: Icons.business_rounded,
+                          value: con.selectedCompany.value,
+                          items: con.companyList,
+                          itemLabel: (co) => co.companyName ?? co.companyId ?? '',
+                          itemSubtitle: (co) => co.companyId,
+                          enabled: !con.syncIsLoading.value,
+                          onChanged: con.syncIsLoading.value ? null : con.selectComapny,
+                        ),
+                        const SizedBox(height: Space.md),
+                        _CustomerField(con: con, enabled: hasCompany),
+                        const SizedBox(height: Space.md),
+                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Document no.',
+                              hint: 'e.g. 2025-37088',
+                              controller: con.docNumController,
+                              enabled: hasCompany,
+                            ),
                           ),
-                    ),
-                  )),
-
-              Obx(() => Visibility(
-                    visible: con.unFinishedDocs.isNotEmpty,
-                    child: Container(
-                      // padding: EdgeInsets.only(top: 5, bottom: 5),
-                      decoration: BoxDecoration(
-                          color: Colors.blueGrey,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            topRight: Radius.circular(10),
-                          )),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              alignment: Alignment.center,
-                              child: Text(
-                                "Sl No",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                      color: Colors.white,
-                                    ),
-                              ),
+                          const SizedBox(width: Space.sm),
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Date',
+                              hint: 'dd-mm-yyyy',
+                              controller: con.docDateController,
+                              enabled: hasCompany,
+                              readOnly: true,
+                              onTap: pickDate,
+                              suffix: const Icon(Icons.calendar_today_rounded, size: 18),
                             ),
-                            VerticalDivider(
-                              color: Colors.white,
-                              thickness: 1.5,
-                              width: 10,
+                          ),
+                        ]),
+                        const SizedBox(height: Space.md),
+                        AppSelectField<Pickers>(
+                          label: 'Returned by (driver / helper)',
+                          placeholder: 'Select driver',
+                          icon: Icons.local_shipping_outlined,
+                          value: con.selectedDriver.value,
+                          items: con.driverList,
+                          itemLabel: (p) => p.name ?? '',
+                          itemSubtitle: (p) => p.id,
+                          enabled: hasCompany && !busy,
+                          onChanged: hasCompany && !busy ? con.selectDriver : null,
+                        ),
+                        const SizedBox(height: Space.lg),
+                        Row(children: [
+                          Expanded(
+                            child: AppButton.secondary(label: 'Clear', onPressed: con.clearCustSelction),
+                          ),
+                          const SizedBox(width: Space.sm),
+                          Expanded(
+                            flex: 2,
+                            child: AppButton(
+                              label: 'Start return',
+                              icon: Icons.arrow_forward_rounded,
+                              iconAfter: true,
+                              loading: busy,
+                              onPressed: busy ? null : () => con.onSubmit(null),
                             ),
-                            Container(
-                              padding: EdgeInsets.only(top: 8, bottom: 8),
-                              width: 160,
-                              child: Text(
-                                "Cust ID\nCust Name",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                      color: Colors.white,
-                                      height: 0.9,
-                                    ),
-                              ),
-                            ),
-                            // SizedBox(width: 10),
-                            VerticalDivider(
-                              color: Colors.white,
-                              thickness: 1.5,
-                              width: 10,
-                            ),
+                          ),
+                        ]),
+                      ]);
+                    });
+                  }),
+                ),
+                Obx(() => SectionLabel(
+                      'Unfinished returns',
+                      padding: const EdgeInsets.fromLTRB(Space.xs, Space.xl, Space.xs, Space.sm),
+                      trailing: StatusChip(
+                        kind: con.unFinishedDocs.isEmpty ? StatusKind.neutral : StatusKind.warning,
+                        label: '${con.unFinishedDocs.length}',
+                        small: true,
+                      ),
+                    )),
+                Obx(() {
+                  if (con.unFinishedDocs.isEmpty) {
+                    return const EmptyState(
+                      title: 'All caught up',
+                      message: 'No unfinished returns on this scanner.',
+                    );
+                  }
+                  return Column(children: [
+                    for (final doc in con.unFinishedDocs)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: Space.sm),
+                        child: AppCard(
+                          radius: Radii.lg,
+                          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                          child: Row(children: [
                             Expanded(
-                              child: SizedBox(
-                                child: Text(
-                                  "Doc Num",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelLarge
-                                      ?.copyWith(
-                                        color: Colors.white,
-                                      ),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('${doc.custName ?? ''} · ${doc.custID ?? ''}',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 2),
+                                Text('Doc ${doc.docNum ?? ''}', style: t.bodySmall),
+                              ]),
+                            ),
+                            AppIconButton(
+                              icon: Icons.delete_outline_rounded,
+                              tooltip: 'Delete unfinished return',
+                              color: c.dangerText,
+                              background: c.dangerSoft,
+                              size: 40,
+                              onPressed: () => deleteUnfinished(doc),
+                            ),
+                            const SizedBox(width: Space.sm),
+                            SizedBox(
+                              height: 40,
+                              child: TextButton(
+                                style: TextButton.styleFrom(
+                                  backgroundColor: c.primarySoft,
+                                  foregroundColor: c.onPrimarySoft,
+                                  minimumSize: const Size(0, 40),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: Radii.all(Radii.md)),
                                 ),
+                                onPressed: () => con.onSubmit(doc),
+                                child: const Text('Resume'),
                               ),
                             ),
-                          ],
+                          ]),
                         ),
                       ),
-                    ),
-                  )),
-              Expanded(
-                child: Obx(
-                  () => ListView.builder(
-                    itemCount: con.unFinishedDocs.length,
-                    itemBuilder: (context, index) {
-                      var item = con.unFinishedDocs[index];
-                      return GestureDetector(
-                        onTap: () async {
-                          con.onSubmit(item);
-                        },
-                        child: Dismissible(
-                          key: Key(
-                              "${item.custID}${item.docNum}"), // Unique key for each item
-                          direction: DismissDirection
-                              .horizontal, // Swipe left or right
-                          background: Container(
-                            alignment: Alignment.centerLeft,
-                            padding: EdgeInsets.only(left: 20),
-                            color: Colors.red,
-                            child: Icon(Icons.delete, color: Colors.white),
-                          ),
-                          secondaryBackground: Container(
-                            alignment: Alignment.centerRight,
-                            padding: EdgeInsets.only(right: 20),
-                            color: Colors.red,
-                            child: Icon(Icons.delete, color: Colors.white),
-                          ),
-                          confirmDismiss: (direction) async {
-                            bool confirm = await CustomWidget.customDialogue(
-                              title: "Confirm Delete",
-                              subTitle:
-                                  "Are you sure you want to delete this document?",
-                              onPressed: () => Get.back(result: true),
-                              onPressedBack: () => Get.back(result: false),
-                            );
-                            log(confirm.toString());
-                            if (confirm == true) {
-                              bool success = await con.removeUnfinished(item);
-                              if (success) {
-                                return true; // Only now remove from UI
-                              }
-                              return false; // Keep in UI if deletion failed
-                            }
-                            return false; // Cancel dismissal
-                          },
-
-                          child: Container(
-                            decoration: BoxDecoration(
-                                color: index.isOdd ? Colors.grey : Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft:
-                                      index == con.unFinishedDocs.length - 1
-                                          ? Radius.circular(10)
-                                          : Radius.circular(0),
-                                  bottomRight:
-                                      index == con.unFinishedDocs.length - 1
-                                          ? Radius.circular(10)
-                                          : Radius.circular(0),
-                                )),
-                            child: IntrinsicHeight(
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      "${index + 1}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium
-                                          ?.copyWith(
-                                            color: Colors.black,
-                                          ),
-                                    ),
-                                  ),
-                                  VerticalDivider(
-                                    color: index.isEven
-                                        ? Colors.grey
-                                        : Colors.white,
-                                    thickness: 1.5,
-                                    width: 10,
-                                  ),
-                                  Container(
-                                    padding: EdgeInsets.only(top: 8, bottom: 8),
-                                    width: 160,
-                                    child: Text(
-                                      "${item.custID}\n${item.custName}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium
-                                          ?.copyWith(
-                                            color: Colors.black,
-                                            height: 1.2,
-                                          ),
-                                    ),
-                                  ),
-                                  // SizedBox(width: 10),
-                                  VerticalDivider(
-                                    color: index.isEven
-                                        ? Colors.grey
-                                        : Colors.white,
-                                    thickness: 1.5,
-                                    width: 10,
-                                  ),
-                                  Expanded(
-                                    child: SizedBox(
-                                      child: Text(
-                                        "${item.docNum}",
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium
-                                            ?.copyWith(
-                                              color: Colors.black,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 30,
-                                    child: Icon(
-                                      Icons.forward_rounded,
-                                      color: Colors.green,
-                                    ),
-                                  )
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10,
-              )
-            ],
+                  ]);
+                }),
+              ],
+            ),
           ),
-        ),
+        );
+      }),
+    );
+  }
+}
+
+/// Looks like a field; tap opens a sheet that searches customers on the server
+/// as you type (con.getSuggestions), then calls con.onCustomerSelected.
+class _CustomerField extends StatelessWidget {
+  final ReturnController con;
+  final bool enabled;
+  const _CustomerField({required this.con, required this.enabled});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: con.custController,
+      builder: (context, value, _) => AppTextField(
+        label: 'Customer',
+        hint: enabled ? 'Search customer' : 'Select company first',
+        controller: con.custController,
+        enabled: enabled,
+        readOnly: true,
+        prefixIcon: Icons.search_rounded,
+        onTap: () async {
+          final picked = await showModalBottomSheet<Customer>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            builder: (_) => _CustomerSearchSheet(con: con),
+          );
+          if (picked != null) con.onCustomerSelected(picked);
+        },
       ),
     );
   }
+}
+
+class _CustomerSearchSheet extends StatefulWidget {
+  final ReturnController con;
+  const _CustomerSearchSheet({required this.con});
+
+  @override
+  State<_CustomerSearchSheet> createState() => _CustomerSearchSheetState();
+}
+
+class _CustomerSearchSheetState extends State<_CustomerSearchSheet> {
+  Timer? _debounce;
+  List<Customer> _results = const [];
+  bool _loading = false;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onChanged(String q) {
+    _query = q;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      if (q.trim().isEmpty) {
+        setState(() => _results = const []);
+        return;
+      }
+      setState(() => _loading = true);
+      final res = await widget.con.getSuggestions(q);
+      if (!mounted || q != _query) return;
+      setState(() {
+        _results = res;
+        _loading = false;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.md),
+            child: Text('Customer', style: t.titleLarge),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+            child: TextField(
+              autofocus: true,
+              onChanged: _onChanged,
+              decoration: InputDecoration(
+                hintText: 'Customer ID or name',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: _loading
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : null,
+              ),
+            ),
+          ),
+          Expanded(
+            child: _results.isEmpty
+                ? Center(
+                    child: Text(_query.trim().isEmpty ? 'Type to search' : (_loading ? '' : 'No customers found'),
+                        style: t.bodySmall),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(Space.sm, Space.sm, Space.sm, Space.lg),
+                    itemCount: _results.length,
+                    itemBuilder: (context, i) {
+                      final cust = _results[i];
+                      return ListTile(
+                        leading: const Icon(Icons.storefront_outlined),
+                        title: Text(cust.custName ?? ''),
+                        subtitle: Text(cust.custId ?? ''),
+                        onTap: () => Navigator.of(context).pop(cust),
+                      );
+                    },
+                  ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Debug builds only: replaces the hidden long-press on Submit.
+class _DeveloperMenu extends StatelessWidget {
+  const _DeveloperMenu();
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+        tooltip: 'Developer tools',
+        icon: const Icon(Icons.build_circle_outlined),
+        onSelected: (_) async {
+          await DBHelper.listColumnsInTable(DBHelper.docMaster);
+          await DBHelper.listColumnsInTable(DBHelper.docDetail);
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'cols', child: Text('Developer: log table columns')),
+        ],
+      );
 }

@@ -1,365 +1,203 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sahayi_android/controller/return_controller.dart';
 import 'package:sahayi_android/model/invoice/doc_detail.dart';
 
-import '../../helper/custom_colors.dart';
-import '../../helper/custom_widget.dart';
-import '../../widgets/button.dart';
-import '../../widgets/part_show.dart';
+import '../../ui/ui.dart';
 
+/// Finalize return (Version 2): summary, merged items, Finalize.
+/// Same controller calls as Version 1: finalize(), then on success
+/// getUnfinishedDocs(), update() and Get.close(3) back to Return start.
 class FinalizeReturnScreen extends StatelessWidget {
   const FinalizeReturnScreen({super.key});
 
+  static String formatDate(String? date) {
+    if (date == null || date == 'null' || date.isEmpty) return '';
+    try {
+      final d = DateTime.parse(date);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    } catch (_) {
+      return date;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    var con = Get.find<ReturnController>();
+    final con = Get.find<ReturnController>();
+    return V2Screen(
+      child: Builder(builder: (context) {
+        final c = context.c;
+        final t = Theme.of(context).textTheme;
 
-    return WillPopScope(
-      onWillPop: () async => false, // Prevents accidental back navigation
-      child: Scaffold(
-        backgroundColor: CustomColors.scaffoldColor,
-        resizeToAvoidBottomInset: false,
-        appBar: CustomWidget.customAppBar("Finalize Returns", back: true),
-        bottomNavigationBar: _buildBottomBar(con, context),
-        body: Padding(
-          padding: const EdgeInsets.only(top: 0, left: 10, right: 10),
-          child: Column(
-            children: [
-              _buildHeader(),
-              PartShowWidget(
-                isHead: true,
-                slNo: "Sl No",
-                barcode: "Barcode",
-                partName: 'Part Name',
-                qty: "Qty",
-                rsn: "Rsn",
-                isView: true,
-              ),
-              Expanded(child: _buildItemList(con)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// **Builds the Bottom Bar with Finalize Button**
-  Widget _buildBottomBar(ReturnController con, BuildContext context) {
-    return Container(
-      height: 90,
-      alignment: Alignment.bottomCenter,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(25),
-          topRight: Radius.circular(25),
-        ),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              "Total Quantity: ${con.totalQty.value}",
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
-          ButtonWidget(
-            width: 160,
-            title: "Finalize",
-            backgroundColor: Colors.green,
-            onPressed: () => _finalizeReturn(con),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// **Builds the Header**
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Text(
-        "Consolidated Items",
-        style: Get.textTheme.titleLarge,
-      ),
-    );
-  }
-
-  /// **Builds the List of Consolidated Items**
-  Widget _buildItemList(ReturnController con) {
-    return Obx(() {
-      if (con.finalizeIsLoading.value) {
-        return Center(
-          child: CircularProgressIndicator.adaptive(),
-        );
-      }
-      return ListView.builder(
-        padding: EdgeInsets.only(top: 5),
-        shrinkWrap: true,
-        itemCount: con.consolidatedSavedItems.length,
-        itemBuilder: (context, index) {
-          var item = con.consolidatedSavedItems[index];
-          return Column(
-            children: [
-              PartShowWidget(
-                isView: true,
-                isHead: false,
-                slNo: "${index + 1}",
-                barcode: item.barcode.toString(),
-                partName: item.partName.toString(),
-                qty: item.checkQty.toString(),
-                rsn: item.reasonCode.toString(),
-                onTap: () => _showItemDetails(context, con, item),
-              ),
-              Divider(thickness: 1.5, color: Colors.black),
-            ],
-          );
-        },
-      );
-    });
-  }
-
-  /// **Handles Finalization Process**
-  Future<void> _finalizeReturn(ReturnController con) async {
-    var res = await con.finalize();
-    if (!res) {
-      CustomWidget.customSnackBar(
-        title: "Error!!",
-        message: "Something went wrong, try again.",
-        backgroundColor: Colors.red,
-      );
-      return;
-    }
-    Get.dialog(
-      Align(
-        alignment: Alignment.center,
-        child: Material(
-          elevation: 15,
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.transparent,
-          child: Container(
-            width: Get.width * 0.8,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min, // Ensures it wraps content
-                children: [
-                  Text(
-                    "Success!!",
-                    style: Get.textTheme.titleLarge,
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    "Successfully finalized the returns of ${con.selectedCustomer.value.custName} with Document Number: ${con.docNumber.value}.",
-                    textAlign: TextAlign.left,
-                    style: Get.textTheme.labelLarge,
-                  ),
-                  SizedBox(height: 20),
-                  _buildSuccessButton(con),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      barrierDismissible: false,
-    );
-  }
-
-  /// **Builds the "Okay" Button on Success Dialog**
-  Widget _buildSuccessButton(ReturnController con) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        ButtonWidget(
-          width: 100,
-          height: 48,
-          title: "Okay!!",
-          backgroundColor: Colors.green,
-          onPressed: () {
-            con.getUnfinishedDocs();
-            con.update();
-            Get.close(3);
-          },
-        ),
-      ],
-    );
-  }
-
-  /// **Displays Item Details in a Dialog**
-  void _showItemDetails(
-      BuildContext context, ReturnController con, DocDetail item) {
-    // log(item.toString());
-    var items = con.savedItems
-        .where((pt) =>
-            pt.barcode == item.barcode &&
-            pt.reasonCode == item.reasonCode &&
-            pt.expiryDate == item.expiryDate)
-        .toList();
-    log(items.toString());
-    var entries = items.map<int>((element) => element.checkQty ?? 0).toList();
-    log(entries.toString());
-    int total = entries.reduce((a, b) => a + b);
-    log("Total: $total");
-
-    Get.dialog(
-      Center(
-        child: Material(
-          elevation: 15,
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.transparent,
-          child: SizedBox(
-            width: Get.width * 0.8,
-            height: 350,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  children: [
-                    Text(
-                      "Details",
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            decoration: TextDecoration.underline,
-                            decorationColor: Colors.black,
-                            decorationThickness: 1.5,
-                            decorationStyle: TextDecorationStyle.solid,
+        Future<void> finalizeReturn() async {
+          final ok = await con.finalize();
+          if (!ok) {
+            AppToast.error('Not finalized', 'Something went wrong, try again.');
+            return;
+          }
+          Get.dialog(
+            Theme(
+              data: V2Screen.theme,
+              child: PopScope(
+                canPop: false,
+                child: Builder(
+                    builder: (context) => AlertDialog(
+                          icon: Icon(Icons.check_circle_rounded,
+                              color: context.c.success, size: 48),
+                          title: const Text('Return finalized'),
+                          content: Text(
+                            'The return of ${con.selectedCustomer.value.custName}, document ${con.docNumber.value}, '
+                            'was sent to the server.',
                           ),
-                    ),
-                    SizedBox(height: 10),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _rowWidget(
-                                head: "Item", detail: "${item.partName}"),
-                            _rowWidget(
-                                head: "Barcode", detail: "${item.barcode}"),
-                            _rowWidget(
-                                head: "Reason", detail: "${item.reasonName}"),
-                            _rowWidget(head: "Entries", detail: "$entries"),
-                            Visibility(
-                              visible: item.expiryDate != null,
-                              child: _rowWidget(
-                                  head: "Expiry",
-                                  detail: formatDate("${item.expiryDate}")),
+                          actions: [
+                            AppButton(
+                              label: 'Done',
+                              onPressed: () {
+                                con.getUnfinishedDocs();
+                                con.update();
+                                Get.close(3);
+                              },
                             ),
-                            _rowWidget(head: "Total", detail: "$total"),
                           ],
+                        )),
+              ),
+            ),
+            barrierDismissible: false,
+          );
+        }
+
+        void showDetails(DocDetail item) {
+          final entries = con.savedItems
+              .where((p) =>
+                  p.barcode == item.barcode &&
+                  p.reasonCode == item.reasonCode &&
+                  p.expiryDate == item.expiryDate)
+              .map((e) => e.checkQty ?? 0)
+              .toList();
+          final total = entries.fold<int>(0, (a, b) => a + b);
+          showModalBottomSheet(
+            context: context,
+            useSafeArea: true,
+            builder: (context) => Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.xl),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(item.partName ?? '',
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: Space.md),
+                    KeyValueRow('Barcode', item.barcode),
+                    KeyValueRow('Reason', item.reasonName),
+                    if (item.expiryDate != null)
+                      KeyValueRow('Expiry', formatDate(item.expiryDate)),
+                    KeyValueRow('Entries', entries.join(' + ')),
+                    KeyValueRow('Total', '$total'),
+                    const SizedBox(height: Space.lg),
+                    AppButton.secondary(
+                        label: 'Close',
+                        onPressed: () => Navigator.of(context).pop()),
+                  ]),
+            ),
+          );
+        }
+
+        return Obx(() {
+          final loading = con.finalizeIsLoading.value;
+          return PopScope(
+            // Back is fine (nothing is lost) except while sending to the server.
+            canPop: !loading,
+            child: Scaffold(
+              appBar: AppTopBar(
+                title: 'Review return',
+                badge: const DocTypeBadge('R'),
+                onBack: loading ? () {} : null,
+              ),
+              body: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                    Space.screen, Space.xs, Space.screen, Space.xl),
+                children: [
+                  AppCard(
+                    radius: Radii.lg,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: Space.sm),
+                    child: Column(children: [
+                      KeyValueRow('Customer',
+                          '${con.selectedCustomer.value.custName ?? ''} · ${con.selectedCustomer.value.custId ?? ''}'),
+                      KeyValueRow('Document', con.docNumber.value),
+                      KeyValueRow('Date', con.docDate.value),
+                      KeyValueRow('Returned by', con.driver.value?.name),
+                    ]),
+                  ),
+                  SectionLabel(
+                    'Items (merged)',
+                    padding: const EdgeInsets.fromLTRB(
+                        Space.xs, Space.lg, Space.xs, Space.sm),
+                    trailing: Text('${con.consolidatedSavedItems.length}',
+                        style: t.labelSmall),
+                  ),
+                  if (loading)
+                    const Padding(
+                        padding: EdgeInsets.all(Space.xxl),
+                        child: Center(child: CircularProgressIndicator()))
+                  else
+                    for (final (i, item) in con.consolidatedSavedItems.indexed)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: Space.sm),
+                        child: ItemCard(
+                          leading: '${i + 1}',
+                          title: item.partName ?? '',
+                          subtitle: '${item.barcode ?? ''}'
+                              '${item.expiryDate == null ? '' : ' · exp ${formatDate(item.expiryDate)}'}',
+                          quantity: '${item.checkQty ?? 0}',
+                          state: ItemState.done,
+                          statusLabel: item.reasonCode ?? '',
+                          trailing:
+                              Icon(Icons.chevron_right_rounded, color: c.muted),
+                          onTap: () => showDetails(item),
                         ),
                       ),
+                ],
+              ),
+              bottomNavigationBar: SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(
+                      Space.screen, Space.sm, Space.screen, Space.md),
+                  decoration: BoxDecoration(
+                    color: c.background,
+                    border: Border(top: BorderSide(color: c.divider)),
+                  ),
+                  child: Row(children: [
+                    Expanded(
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Total quantity', style: t.bodySmall),
+                            Text('${con.totalQty.value}',
+                                style: t.headlineSmall?.copyWith(
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ])),
+                          ]),
                     ),
-                    SizedBox(height: 10),
-                    _buildDialogOkayButton(),
-                  ],
+                    Expanded(
+                      flex: 2,
+                      child: AppButton(
+                        label: 'Finalize',
+                        icon: Icons.task_alt_rounded,
+                        loading: loading,
+                        onPressed: loading ? null : finalizeReturn,
+                      ),
+                    ),
+                  ]),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-      barrierDismissible: true,
-    );
-  }
-
-  Widget _rowWidget({required String head, required String detail}) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 70,
-            child: Text(
-              head,
-              style: Get.textTheme.labelLarge,
-            ),
-          ),
-          Text(
-            ": ",
-            style: Get.textTheme.labelLarge,
-          ),
-          Expanded(
-            child: Text(
-              detail,
-              style: Get.textTheme.labelLarge,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String formatDate(String date) {
-    if (date == "null" || date.isEmpty) return "";
-    try {
-      DateTime parsedDate = DateTime.parse(date);
-      return "${parsedDate.day.toString().padLeft(2, '0')}/"
-          "${parsedDate.month.toString().padLeft(2, '0')}/"
-          "${parsedDate.year}";
-    } catch (e) {
-      return date; // Return original string if parsing fails
-    }
-  }
-  // Widget _rowWidget2(
-  //     {required String head, required List<Map<String, String>> items}) {
-
-  //   return Padding(
-  //     padding: const EdgeInsets.only(top: 10),
-  //     child: Row(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         SizedBox(
-  //           width: 70,
-  //           child: Text(
-  //             head,
-  //             style: Get.textTheme.labelLarge,
-  //           ),
-  //         ),
-  //         Text(
-  //           ": ",
-  //           style: Get.textTheme.labelLarge,
-  //         ),
-  //         Expanded(
-  //           child: Column(
-  //             crossAxisAlignment: CrossAxisAlignment.start,
-  //             children: items.map((item) {
-  //               String checkQty = item.keys.first; // Get checkQty from key
-  //               String expiryDate =
-  //                   item.values.first; // Get expiryDate from value
-
-  //               return Text(
-  //                 "$checkQty${formatDate(expiryDate)}",
-  //                 style: Get.textTheme.labelLarge,
-  //               );
-  //             }).toList(),
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  /// **Builds the "Okay" Button in Item Details Dialog**
-  Widget _buildDialogOkayButton() {
-    return ButtonWidget(
-      width: 100,
-      height: 48,
-      title: "Okay",
-      backgroundColor: Colors.green,
-      onPressed: () => Get.back(),
+          );
+        });
+      }),
     );
   }
 }
