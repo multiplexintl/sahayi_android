@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import '../../service/admin_service.dart';
 import 'all_devices_tab.dart';
 import 'device_logs_tab.dart';
+import 'package:flutter/foundation.dart';
+import '../../routes.dart';
 
 /// Hidden logs dashboard. Online admin: "This device" + "All devices".
 /// Offline PIN: "This device" only. Leaving the screen ends the admin session.
@@ -69,6 +71,14 @@ class _LogsDashboardScreenState extends State<LogsDashboardScreen> {
                   indicatorSize: TabBarIndicatorSize.tab,
                 ),
           actions: [
+            // Developer tools (debug builds only): Version 2 design preview
+            if (kDebugMode)
+              IconButton(
+                tooltip: 'Design preview (v2)',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.palette_outlined, size: 20),
+                onPressed: () => Get.toNamed(RouteLinks.designPreview),
+              ),
             IconButton(
               tooltip: 'Close',
               visualDensity: VisualDensity.compact,

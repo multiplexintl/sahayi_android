@@ -78,6 +78,21 @@ flutter:
     - assets/images/
     - assets/sound/
     - assets/cert/
+
+  # Version 2 design system font (SIL Open Font License, see OFL.txt)
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-ExtraBold.ttf
+          weight: 800
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
   # For details regarding adding assets from package dependencies, see

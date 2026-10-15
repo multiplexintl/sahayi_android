@@ -13,6 +13,7 @@ import 'view/login.dart';
 import 'view/Invoice_Transfer/scan_invoice.dart';
 import 'view/splash.dart';
 import 'view/admin/logs_dashboard.dart';
+import 'view/design_preview/design_preview.dart';
 
 class RouteGenerator {
   // Common transition settings
@@ -49,6 +50,7 @@ class RouteGenerator {
     _createPage(RouteLinks.scanReturns, () => const ScanReturns()),
     _createPage(RouteLinks.finlaizeReturns, () => const FinalizeReturnScreen()),
     _createPage(RouteLinks.logsDashboard, () => const LogsDashboardScreen()),
+    _createPage(RouteLinks.designPreview, () => const DesignPreviewScreen()),
   ];
 }
 
@@ -66,6 +68,7 @@ class RouteLinks {
   static const String scanReturns = "/scan-returns";
   static const String finlaizeReturns = "/finalize-returns";
   static const String logsDashboard = "/logs-dashboard";
+  static const String designPreview = "/design-preview";
 }
 
 
