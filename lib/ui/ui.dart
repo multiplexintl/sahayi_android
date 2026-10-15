@@ -14,4 +14,3 @@ export 'badges.dart';
 export 'feedback.dart';
 export 'item_card.dart';
 export 'progress_card.dart';
-export 'v2_screen.dart';

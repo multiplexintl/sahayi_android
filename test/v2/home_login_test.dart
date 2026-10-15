@@ -10,9 +10,12 @@ import 'package:sahayi_android/controller/login_controller.dart';
 import 'package:sahayi_android/controller/return_controller.dart';
 import 'package:sahayi_android/model/user.dart';
 import 'package:sahayi_android/routes.dart';
+import 'package:sahayi_android/theme/theme_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sahayi_android/view/home.dart';
 import 'package:sahayi_android/view/login.dart';
 import 'package:sahayi_android/view/splash.dart';
+import 'test_app.dart';
 
 // Real controllers minus their start-up network / platform work.
 class TestHome extends HomeController {
@@ -64,7 +67,9 @@ void eda52(WidgetTester tester, double font, {double keyboard = 0}) {
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
 
-void main() {
+void main() => bothThemes(_tests);
+
+void _tests() {
   TestWidgetsFlutterBinding.ensureInitialized();
   for (final ch in ['xyz.luan/audioplayers.global', 'xyz.luan/audioplayers']) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -89,7 +94,7 @@ void main() {
     for (final font in [1.0, 1.3]) {
       testWidgets('fits 360x640, greeting, 4 cards, online chip (font x$font)', (tester) async {
         eda52(tester, font);
-        await tester.pumpWidget(const GetMaterialApp(home: HomeScreen()));
+        await tester.pumpWidget(testApp(home: HomeScreen()));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.text('Amjadh Changanakattil'), findsOneWidget);
@@ -102,10 +107,26 @@ void main() {
       });
     }
 
+    testWidgets('theme button flips light/dark and remembers the choice', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await ThemeService.init();
+      eda52(tester, 1.0);
+      await tester.pumpWidget(testApp(home: const HomeScreen()));
+      await tester.pumpAndSettle();
+      Brightness now() => Theme.of(tester.element(find.text('Invoice'))).brightness;
+      final wasDark = now() == Brightness.dark;
+      await tester.tap(find.byTooltip(wasDark ? 'Light mode' : 'Dark mode'));
+      await tester.pumpAndSettle();
+      expect(now(), wasDark ? Brightness.light : Brightness.dark);
+      expect(find.byTooltip(wasDark ? 'Dark mode' : 'Light mode'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('themeMode'), wasDark ? 'light' : 'dark');
+    });
+
     testWidgets('cards open the same screens as before', (tester) async {
       eda52(tester, 1.0);
       final opened = <String>[];
-      await tester.pumpWidget(GetMaterialApp(
+      await tester.pumpWidget(testApp(
         home: const HomeScreen(),
         getPages: [
           for (final r in [RouteLinks.invoiceTransfer, RouteLinks.customerSelect, RouteLinks.invoiceReport])
@@ -128,7 +149,7 @@ void main() {
 
     testWidgets('log out asks first; Cancel keeps you in, Log out logs out', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: HomeScreen()));
+      await tester.pumpWidget(testApp(home: HomeScreen()));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Log out'));
       await tester.pumpAndSettle();
@@ -158,7 +179,7 @@ void main() {
       for (final font in [1.0, 1.3]) {
         testWidgets('fits 360x640 (keyboard ${keyboard.toInt()}, font x$font)', (tester) async {
           eda52(tester, font, keyboard: keyboard);
-          await tester.pumpWidget(const GetMaterialApp(home: LoginScreen()));
+          await tester.pumpWidget(testApp(home: LoginScreen()));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
         });
@@ -167,7 +188,7 @@ void main() {
 
     testWidgets('ID is upper-cased, Log in calls getEmployee()', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: LoginScreen()));
+      await tester.pumpWidget(testApp(home: LoginScreen()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).first, 'mx1576');
       expect(login.idController.text, 'MX1576');
@@ -178,7 +199,7 @@ void main() {
 
     testWidgets('password hidden by default; eye button shows it', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: LoginScreen()));
+      await tester.pumpWidget(testApp(home: LoginScreen()));
       await tester.pumpAndSettle();
       EditableText pwd() => tester.widget<EditableText>(find.byType(EditableText).last);
       expect(pwd().obscureText, isTrue);
@@ -190,7 +211,7 @@ void main() {
 
   testWidgets('Splash shows the brand', (tester) async {
     eda52(tester, 1.3);
-    await tester.pumpWidget(const GetMaterialApp(home: SplashScreen()));
+    await tester.pumpWidget(testApp(home: SplashScreen()));
     await tester.pump();
     expect(find.text('Sahayi'), findsOneWidget);
     expect(tester.takeException(), isNull);

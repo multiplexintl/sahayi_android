@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get/get.dart';
 import 'package:sahayi_android/view/admin/admin_login_dialog.dart';
+import '../v2/test_app.dart';
 
 /// EDA52-sized screen (360 x 640 logical), keyboard open/closed, normal and
 /// large system font, with an error message showing.
-void main() {
+void main() => bothThemes(_tests);
+
+void _tests() {
   Future<void> openDialog(WidgetTester tester,
       {required double keyboard, required double fontScale}) async {
     tester.view.physicalSize = const Size(720, 1280);
@@ -15,7 +17,7 @@ void main() {
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-    await tester.pumpWidget(const GetMaterialApp(home: Scaffold(body: SizedBox())));
+    await tester.pumpWidget(testApp(home: Scaffold(body: SizedBox())));
     AdminLoginDialog.show();
     await tester.pumpAndSettle();
   }

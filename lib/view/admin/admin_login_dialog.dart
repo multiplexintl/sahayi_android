@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sahayi_android/ui/ui.dart';
 import 'package:get/get.dart';
 
 import '../../routes.dart';
@@ -107,7 +108,7 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
             ],
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Text(_error!, style: TextStyle(color: context.c.dangerText)),
             ],
             const SizedBox(height: 8),
             Align(

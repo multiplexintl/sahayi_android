@@ -6,6 +6,7 @@ import 'package:open_filex/open_filex.dart';
 
 import '../../service/update_service.dart';
 import '../../service/app_logger.dart';
+import '../../ui/ui.dart';
 
 class UpdateDialog extends StatefulWidget {
   final UpdateInfo updateInfo;
@@ -37,14 +38,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
     return PopScope(
       canPop: false, // Prevent back-button dismiss
       child: AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Row(
-          children: [
-            Icon(Icons.system_update, color: Color(0xFF1565C0)),
-            SizedBox(width: 8),
-            Text('Update Required'),
-          ],
-        ),
+        icon: Icon(Icons.system_update_rounded, size: 36, color: context.c.primary),
+        title: const Text('Update required'),
         content: _buildContent(),
         actions: _buildActions(),
       ),
@@ -52,26 +47,28 @@ class _UpdateDialogState extends State<UpdateDialog> {
   }
 
   Widget _buildContent() {
+    final c = context.c;
+    final t = Theme.of(context).textTheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Version ${widget.updateInfo.versionName} is available.',
-          style: const TextStyle(fontWeight: FontWeight.w500),
+          style: t.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         if (widget.updateInfo.notes.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
             widget.updateInfo.notes,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
+            style: t.bodySmall,
           ),
         ],
         const SizedBox(height: 16),
         if (_phase == _Phase.downloading) ...[
           Text(
             'Downloading... ${(_progress * 100).toStringAsFixed(0)}%',
-            style: const TextStyle(fontSize: 13),
+            style: t.bodySmall,
           ),
           const SizedBox(height: 8),
           ClipRRect(
@@ -79,34 +76,33 @@ class _UpdateDialogState extends State<UpdateDialog> {
             child: LinearProgressIndicator(
               value: _progress,
               minHeight: 8,
-              backgroundColor: Colors.blue.shade100,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+              backgroundColor: c.surfaceAlt,
+              valueColor: AlwaysStoppedAnimation<Color>(c.primary),
             ),
           ),
         ],
         if (_phase == _Phase.installing) ...[
-          const Row(
+          Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              SizedBox(width: 8),
-              Text('Opening installer...', style: TextStyle(fontSize: 13)),
+              const SizedBox(width: 8),
+              Text('Opening installer...', style: t.bodySmall),
             ],
           ),
         ],
         if (_phase == _Phase.error) ...[
           Row(
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 16),
+              Icon(Icons.error_outline, color: c.dangerText, size: 16),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   _errorMessage ?? 'Download failed. Please try again.',
-                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                  style: t.bodySmall?.copyWith(color: c.dangerText),
                 ),
               ),
             ],
@@ -121,15 +117,11 @@ class _UpdateDialogState extends State<UpdateDialog> {
       return null; // No buttons while busy
     }
     return [
-      ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1565C0),
-          foregroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
+      AppButton(
+        label: _phase == _Phase.error ? 'Retry' : 'Update now',
+        icon: _phase == _Phase.error ? Icons.refresh_rounded : Icons.download_rounded,
+        expand: true,
         onPressed: _startDownload,
-        child: Text(_phase == _Phase.error ? 'Retry' : 'Update Now'),
       ),
     ];
   }

@@ -7,9 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sahayi_android/repo/admin_logs_repo.dart';
 import 'package:sahayi_android/view/admin/all_devices_tab.dart';
+import '../v2/test_app.dart';
 
 /// "All devices" tab on a 360x640 screen with realistic server answers.
-void main() {
+void main() => bothThemes(_tests);
+
+void _tests() {
   http.Response answer(http.Request req) {
     if (req.url.path.endsWith('/Summary')) {
       return http.Response(jsonEncode({
@@ -46,7 +49,7 @@ void main() {
           headers: () => const {},
           client: () async => MockClient((req) async => answer(req)));
 
-      await tester.pumpWidget(GetMaterialApp(home: Scaffold(body: AllDevicesTab(repo: repo))));
+      await tester.pumpWidget(testApp(home: Scaffold(body: AllDevicesTab(repo: repo))));
       await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));

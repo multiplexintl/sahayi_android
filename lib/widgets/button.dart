@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../ui/ui.dart';
+
+/// Version 1 button still used by two ReturnController dialogs. The look now
+/// follows the Version 2 theme; red still means "danger", any other colour
+/// becomes the primary button. [child] and [height] are ignored (unused).
 class ButtonWidget extends StatelessWidget {
   final double? width;
   final double? height;
@@ -22,26 +27,12 @@ class ButtonWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onTap = onPressed;
     return SizedBox(
       width: width ?? 350,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          visualDensity: VisualDensity(vertical: -4, horizontal: -4),
-          fixedSize: Size(350, height ?? 48),
-          alignment: Alignment.center,
-          backgroundColor: backgroundColor ?? Colors.blueGrey.shade400,
-          foregroundColor: Colors.white,
-          shape: BeveledRectangleBorder(
-            borderRadius: BorderRadius.circular(5),
-          ),
-          textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        onPressed: onPressed,
-        onLongPress: onLongPress,
-        child: child ?? Text(title),
-      ),
+      child: backgroundColor == Colors.red
+          ? AppButton.danger(label: title, onPressed: onTap, onLongPress: onLongPress)
+          : AppButton(label: title, onPressed: onTap, onLongPress: onLongPress),
     );
   }
 }

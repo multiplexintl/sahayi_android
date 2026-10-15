@@ -9,23 +9,29 @@ class ThemeService extends GetxController {
 
   final mode = ThemeMode.system.obs;
 
-  @override
-  void onInit() {
-    super.onInit();
-    _load();
+  static ThemeService get to => Get.find<ThemeService>();
+
+  /// Reads the saved choice before the first frame (no light/dark flash).
+  static Future<ThemeService> init() async {
+    final service = Get.put(ThemeService(), permanent: true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      service.mode.value = parse(prefs.getString(_key));
+    } catch (_) {
+      // Keep "system" if the setting cannot be read.
+    }
+    return service;
   }
 
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    mode.value = switch (prefs.getString(_key)) {
-      'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
-    };
-  }
+  static ThemeMode parse(String? value) => switch (value) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
 
   Future<void> setMode(ThemeMode m) async {
     mode.value = m;
+    Get.changeThemeMode(m);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, m.name);
   }

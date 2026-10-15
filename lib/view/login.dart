@@ -13,89 +13,87 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final con = Get.put(LoginController());
-    return V2Screen(
-      child: Builder(builder: (context) {
-        final c = context.c;
-        final t = Theme.of(context).textTheme;
+    return Builder(builder: (context) {
+      final c = context.c;
+      final t = Theme.of(context).textTheme;
 
-        void submit() {
-          FocusManager.instance.primaryFocus?.unfocus();
-          con.getEmployee();
-        }
+      void submit() {
+        FocusManager.instance.primaryFocus?.unfocus();
+        con.getEmployee();
+      }
 
-        return GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: Scaffold(
-            body: SafeArea(
-              // Scrolls when the keyboard takes space; centred otherwise.
-              child: LayoutBuilder(
-                builder: (context, box) => SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: Space.xl),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: box.maxHeight),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const SizedBox(height: Space.lg),
-                      Image.asset('assets/images/launch_icon.png', width: 140, height: 140),
-                      Text('Sahayi', style: t.displaySmall),
-                      const SizedBox(height: 2),
-                      Text('Warehouse checking made simple', style: t.bodySmall),
-                      const SizedBox(height: Space.xl),
-                      AppCard(
-                        padding: const EdgeInsets.all(Space.xl),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          AppTextField(
-                            label: 'Employee ID',
-                            hint: 'e.g. MX1576',
-                            controller: con.idController,
-                            prefixIcon: Icons.badge_outlined,
-                            textInputAction: TextInputAction.next,
-                            onChanged: (value) => con.idController.text = value.toUpperCase(),
-                          ),
-                          const SizedBox(height: Space.md),
-                          Obx(() => AppTextField(
-                                label: 'Password',
-                                controller: con.pwdController,
-                                prefixIcon: Icons.lock_outline_rounded,
-                                // Hidden by default; the eye shows it. (Version 1 used this
-                                // flag the other way round and showed the password.)
-                                obscureText: !con.isPasswordVisible.value,
-                                textInputAction: TextInputAction.done,
-                                onSubmitted: (_) => con.isLoading.value ? null : submit(),
-                                suffix: IconButton(
-                                  tooltip: con.isPasswordVisible.value ? 'Hide password' : 'Show password',
-                                  icon: Icon(con.isPasswordVisible.value
-                                      ? Icons.visibility_off_rounded
-                                      : Icons.visibility_rounded),
-                                  onPressed: con.isPasswordVisible.toggle,
-                                ),
-                              )),
-                          const SizedBox(height: Space.lg),
-                          Obx(() => AppButton(
-                                label: 'Log in',
-                                icon: Icons.arrow_forward_rounded,
-                                iconAfter: true,
-                                loading: con.isLoading.value,
-                                onPressed: con.isLoading.value ? null : submit,
-                              )),
-                        ]),
-                      ),
-                      const SizedBox(height: Space.lg),
-                      // 7 taps on the version opens the hidden admin login
-                      AdminTapDetector(
-                        child: Obx(() => Text(
-                              'v${con.version.value ?? ''} (${con.buildNumber.value ?? ''})',
-                              style: t.labelSmall?.copyWith(color: c.faint),
+      return GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Scaffold(
+          body: SafeArea(
+            // Scrolls when the keyboard takes space; centred otherwise.
+            child: LayoutBuilder(
+              builder: (context, box) => SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: Space.xl),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: box.maxHeight),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const SizedBox(height: Space.lg),
+                    Image.asset('assets/images/launch_icon.png', width: 140, height: 140),
+                    Text('Sahayi', style: t.displaySmall),
+                    const SizedBox(height: 2),
+                    Text('Warehouse checking made simple', style: t.bodySmall),
+                    const SizedBox(height: Space.xl),
+                    AppCard(
+                      padding: const EdgeInsets.all(Space.xl),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        AppTextField(
+                          label: 'Employee ID',
+                          hint: 'e.g. MX1576',
+                          controller: con.idController,
+                          prefixIcon: Icons.badge_outlined,
+                          textInputAction: TextInputAction.next,
+                          onChanged: (value) => con.idController.text = value.toUpperCase(),
+                        ),
+                        const SizedBox(height: Space.md),
+                        Obx(() => AppTextField(
+                              label: 'Password',
+                              controller: con.pwdController,
+                              prefixIcon: Icons.lock_outline_rounded,
+                              // Hidden by default; the eye shows it. (Version 1 used this
+                              // flag the other way round and showed the password.)
+                              obscureText: !con.isPasswordVisible.value,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => con.isLoading.value ? null : submit(),
+                              suffix: IconButton(
+                                tooltip: con.isPasswordVisible.value ? 'Hide password' : 'Show password',
+                                icon: Icon(con.isPasswordVisible.value
+                                    ? Icons.visibility_off_rounded
+                                    : Icons.visibility_rounded),
+                                onPressed: con.isPasswordVisible.toggle,
+                              ),
                             )),
-                      ),
-                      const SizedBox(height: Space.md),
-                    ]),
-                  ),
+                        const SizedBox(height: Space.lg),
+                        Obx(() => AppButton(
+                              label: 'Log in',
+                              icon: Icons.arrow_forward_rounded,
+                              iconAfter: true,
+                              loading: con.isLoading.value,
+                              onPressed: con.isLoading.value ? null : submit,
+                            )),
+                      ]),
+                    ),
+                    const SizedBox(height: Space.lg),
+                    // 7 taps on the version opens the hidden admin login
+                    AdminTapDetector(
+                      child: Obx(() => Text(
+                            'v${con.version.value ?? ''} (${con.buildNumber.value ?? ''})',
+                            style: t.labelSmall?.copyWith(color: c.faint),
+                          )),
+                    ),
+                    const SizedBox(height: Space.md),
+                  ]),
                 ),
               ),
             ),
           ),
-        );
-      }),
-    );
+        ),
+      );
+    });
   }
 }

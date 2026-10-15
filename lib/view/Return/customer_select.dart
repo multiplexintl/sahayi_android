@@ -24,198 +24,196 @@ class CustomerSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final con = Get.find<ReturnController>();
-    return V2Screen(
-      child: Builder(builder: (context) {
-        final c = context.c;
-        final t = Theme.of(context).textTheme;
+    return Builder(builder: (context) {
+      final c = context.c;
+      final t = Theme.of(context).textTheme;
 
-        Future<void> pickDate() async {
-          final today = DateTime.now();
-          final max = DateTime(today.year, today.month, today.day);
-          DateTime? initial;
-          try {
-            initial = con.docDateController.text.isEmpty ? null : _dateFormat.parse(con.docDateController.text);
-          } catch (_) {}
-          final picked = await showDatePicker(
-            context: context,
-            firstDate: DateTime(today.year - 2, today.month, today.day),
-            lastDate: max,
-            initialDate: initial ?? max,
-            helpText: 'Document date',
-          );
-          if (picked == null) return;
-          final text = _dateFormat.format(picked);
-          con.docDateController.text = text;
-          con.docDate.value = text;
-          con.update();
-        }
-
-        Future<void> deleteUnfinished(DocMaster doc) async {
-          final ok = await showConfirmSheet(
-            context: context,
-            title: 'Delete this unfinished return?',
-            message: '${doc.custID} · ${doc.custName}\nDocument ${doc.docNum}\n\n'
-                'Its scanned items are removed from this scanner.',
-            confirmLabel: 'Delete',
-            danger: true,
-          );
-          if (ok) await con.removeUnfinished(doc);
-        }
-
-        return GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: Scaffold(
-            appBar: AppTopBar(
-              title: 'New return',
-              badge: const DocTypeBadge('R'),
-              actions: [if (kDebugMode) const _DeveloperMenu()],
-            ),
-            body: ListView(
-              padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
-              children: [
-                AppCard(
-                  child: GetBuilder<ReturnController>(builder: (_) {
-                    return Obx(() {
-                      final hasCompany = con.selectedCompany.value != null;
-                      final busy = con.selectIsLoading.value;
-                      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        AppSelectField<Company>(
-                          label: 'Company',
-                          placeholder: 'Select company',
-                          icon: Icons.business_rounded,
-                          value: con.selectedCompany.value,
-                          items: con.companyList,
-                          itemLabel: (co) => co.companyName ?? co.companyId ?? '',
-                          itemSubtitle: (co) => co.companyId,
-                          enabled: !con.syncIsLoading.value,
-                          onChanged: con.syncIsLoading.value ? null : con.selectComapny,
-                        ),
-                        const SizedBox(height: Space.md),
-                        _CustomerField(con: con, enabled: hasCompany),
-                        const SizedBox(height: Space.md),
-                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Expanded(
-                            child: AppTextField(
-                              label: 'Document no.',
-                              hint: 'e.g. 2025-37088',
-                              controller: con.docNumController,
-                              enabled: hasCompany,
-                            ),
-                          ),
-                          const SizedBox(width: Space.sm),
-                          Expanded(
-                            child: AppTextField(
-                              label: 'Date',
-                              hint: 'dd-mm-yyyy',
-                              controller: con.docDateController,
-                              enabled: hasCompany,
-                              readOnly: true,
-                              onTap: pickDate,
-                              suffix: const Icon(Icons.calendar_today_rounded, size: 18),
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(height: Space.md),
-                        AppSelectField<Pickers>(
-                          label: 'Returned by (driver / helper)',
-                          placeholder: 'Select driver',
-                          icon: Icons.local_shipping_outlined,
-                          value: con.selectedDriver.value,
-                          items: con.driverList,
-                          itemLabel: (p) => p.name ?? '',
-                          itemSubtitle: (p) => p.id,
-                          enabled: hasCompany && !busy,
-                          onChanged: hasCompany && !busy ? con.selectDriver : null,
-                        ),
-                        const SizedBox(height: Space.lg),
-                        Row(children: [
-                          Expanded(
-                            child: AppButton.secondary(label: 'Clear', onPressed: con.clearCustSelction),
-                          ),
-                          const SizedBox(width: Space.sm),
-                          Expanded(
-                            flex: 2,
-                            child: AppButton(
-                              label: 'Start return',
-                              icon: Icons.arrow_forward_rounded,
-                              iconAfter: true,
-                              loading: busy,
-                              onPressed: busy ? null : () => con.onSubmit(null),
-                            ),
-                          ),
-                        ]),
-                      ]);
-                    });
-                  }),
-                ),
-                Obx(() => SectionLabel(
-                      'Unfinished returns',
-                      padding: const EdgeInsets.fromLTRB(Space.xs, Space.xl, Space.xs, Space.sm),
-                      trailing: StatusChip(
-                        kind: con.unFinishedDocs.isEmpty ? StatusKind.neutral : StatusKind.warning,
-                        label: '${con.unFinishedDocs.length}',
-                        small: true,
-                      ),
-                    )),
-                Obx(() {
-                  if (con.unFinishedDocs.isEmpty) {
-                    return const EmptyState(
-                      title: 'All caught up',
-                      message: 'No unfinished returns on this scanner.',
-                    );
-                  }
-                  return Column(children: [
-                    for (final doc in con.unFinishedDocs)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: Space.sm),
-                        child: AppCard(
-                          radius: Radii.lg,
-                          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-                          child: Row(children: [
-                            Expanded(
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text('${doc.custName ?? ''} · ${doc.custID ?? ''}',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 2),
-                                Text('Doc ${doc.docNum ?? ''}', style: t.bodySmall),
-                              ]),
-                            ),
-                            AppIconButton(
-                              icon: Icons.delete_outline_rounded,
-                              tooltip: 'Delete unfinished return',
-                              color: c.dangerText,
-                              background: c.dangerSoft,
-                              size: 40,
-                              onPressed: () => deleteUnfinished(doc),
-                            ),
-                            const SizedBox(width: Space.sm),
-                            SizedBox(
-                              height: 40,
-                              child: TextButton(
-                                style: TextButton.styleFrom(
-                                  backgroundColor: c.primarySoft,
-                                  foregroundColor: c.onPrimarySoft,
-                                  minimumSize: const Size(0, 40),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: Radii.all(Radii.md)),
-                                ),
-                                onPressed: () => con.onSubmit(doc),
-                                child: const Text('Resume'),
-                              ),
-                            ),
-                          ]),
-                        ),
-                      ),
-                  ]);
-                }),
-              ],
-            ),
-          ),
+      Future<void> pickDate() async {
+        final today = DateTime.now();
+        final max = DateTime(today.year, today.month, today.day);
+        DateTime? initial;
+        try {
+          initial = con.docDateController.text.isEmpty ? null : _dateFormat.parse(con.docDateController.text);
+        } catch (_) {}
+        final picked = await showDatePicker(
+          context: context,
+          firstDate: DateTime(today.year - 2, today.month, today.day),
+          lastDate: max,
+          initialDate: initial ?? max,
+          helpText: 'Document date',
         );
-      }),
-    );
+        if (picked == null) return;
+        final text = _dateFormat.format(picked);
+        con.docDateController.text = text;
+        con.docDate.value = text;
+        con.update();
+      }
+
+      Future<void> deleteUnfinished(DocMaster doc) async {
+        final ok = await showConfirmSheet(
+          context: context,
+          title: 'Delete this unfinished return?',
+          message: '${doc.custID} · ${doc.custName}\nDocument ${doc.docNum}\n\n'
+              'Its scanned items are removed from this scanner.',
+          confirmLabel: 'Delete',
+          danger: true,
+        );
+        if (ok) await con.removeUnfinished(doc);
+      }
+
+      return GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Scaffold(
+          appBar: AppTopBar(
+            title: 'New return',
+            badge: const DocTypeBadge('R'),
+            actions: [if (kDebugMode) const _DeveloperMenu()],
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
+            children: [
+              AppCard(
+                child: GetBuilder<ReturnController>(builder: (_) {
+                  return Obx(() {
+                    final hasCompany = con.selectedCompany.value != null;
+                    final busy = con.selectIsLoading.value;
+                    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      AppSelectField<Company>(
+                        label: 'Company',
+                        placeholder: 'Select company',
+                        icon: Icons.business_rounded,
+                        value: con.selectedCompany.value,
+                        items: con.companyList,
+                        itemLabel: (co) => co.companyName ?? co.companyId ?? '',
+                        itemSubtitle: (co) => co.companyId,
+                        enabled: !con.syncIsLoading.value,
+                        onChanged: con.syncIsLoading.value ? null : con.selectComapny,
+                      ),
+                      const SizedBox(height: Space.md),
+                      _CustomerField(con: con, enabled: hasCompany),
+                      const SizedBox(height: Space.md),
+                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Expanded(
+                          child: AppTextField(
+                            label: 'Document no.',
+                            hint: 'e.g. 2025-37088',
+                            controller: con.docNumController,
+                            enabled: hasCompany,
+                          ),
+                        ),
+                        const SizedBox(width: Space.sm),
+                        Expanded(
+                          child: AppTextField(
+                            label: 'Date',
+                            hint: 'dd-mm-yyyy',
+                            controller: con.docDateController,
+                            enabled: hasCompany,
+                            readOnly: true,
+                            onTap: pickDate,
+                            suffix: const Icon(Icons.calendar_today_rounded, size: 18),
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: Space.md),
+                      AppSelectField<Pickers>(
+                        label: 'Returned by (driver / helper)',
+                        placeholder: 'Select driver',
+                        icon: Icons.local_shipping_outlined,
+                        value: con.selectedDriver.value,
+                        items: con.driverList,
+                        itemLabel: (p) => p.name ?? '',
+                        itemSubtitle: (p) => p.id,
+                        enabled: hasCompany && !busy,
+                        onChanged: hasCompany && !busy ? con.selectDriver : null,
+                      ),
+                      const SizedBox(height: Space.lg),
+                      Row(children: [
+                        Expanded(
+                          child: AppButton.secondary(label: 'Clear', onPressed: con.clearCustSelction),
+                        ),
+                        const SizedBox(width: Space.sm),
+                        Expanded(
+                          flex: 2,
+                          child: AppButton(
+                            label: 'Start return',
+                            icon: Icons.arrow_forward_rounded,
+                            iconAfter: true,
+                            loading: busy,
+                            onPressed: busy ? null : () => con.onSubmit(null),
+                          ),
+                        ),
+                      ]),
+                    ]);
+                  });
+                }),
+              ),
+              Obx(() => SectionLabel(
+                    'Unfinished returns',
+                    padding: const EdgeInsets.fromLTRB(Space.xs, Space.xl, Space.xs, Space.sm),
+                    trailing: StatusChip(
+                      kind: con.unFinishedDocs.isEmpty ? StatusKind.neutral : StatusKind.warning,
+                      label: '${con.unFinishedDocs.length}',
+                      small: true,
+                    ),
+                  )),
+              Obx(() {
+                if (con.unFinishedDocs.isEmpty) {
+                  return const EmptyState(
+                    title: 'All caught up',
+                    message: 'No unfinished returns on this scanner.',
+                  );
+                }
+                return Column(children: [
+                  for (final doc in con.unFinishedDocs)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Space.sm),
+                      child: AppCard(
+                        radius: Radii.lg,
+                        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                        child: Row(children: [
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('${doc.custName ?? ''} · ${doc.custID ?? ''}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 2),
+                              Text('Doc ${doc.docNum ?? ''}', style: t.bodySmall),
+                            ]),
+                          ),
+                          AppIconButton(
+                            icon: Icons.delete_outline_rounded,
+                            tooltip: 'Delete unfinished return',
+                            color: c.dangerText,
+                            background: c.dangerSoft,
+                            size: 40,
+                            onPressed: () => deleteUnfinished(doc),
+                          ),
+                          const SizedBox(width: Space.sm),
+                          SizedBox(
+                            height: 40,
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                backgroundColor: c.primarySoft,
+                                foregroundColor: c.onPrimarySoft,
+                                minimumSize: const Size(0, 40),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                shape: RoundedRectangleBorder(borderRadius: Radii.all(Radii.md)),
+                              ),
+                              onPressed: () => con.onSubmit(doc),
+                              child: const Text('Resume'),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                ]);
+              }),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }
 

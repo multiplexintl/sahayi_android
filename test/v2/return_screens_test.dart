@@ -14,6 +14,7 @@ import 'package:sahayi_android/model/user.dart';
 import 'package:sahayi_android/view/Return/customer_select.dart';
 import 'package:sahayi_android/view/Return/finalize.dart';
 import 'package:sahayi_android/view/Return/scan_returns.dart';
+import 'test_app.dart';
 
 class TestHome extends HomeController {
   @override
@@ -75,7 +76,9 @@ void eda52(WidgetTester tester, double font) {
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
 
-void main() {
+void main() => bothThemes(_tests);
+
+void _tests() {
   TestWidgetsFlutterBinding.ensureInitialized();
   for (final ch in ['xyz.luan/audioplayers.global', 'xyz.luan/audioplayers']) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -108,7 +111,7 @@ void main() {
     for (final font in [1.0, 1.3]) {
       testWidgets('fits 360x640 with unfinished returns (font x$font)', (tester) async {
         eda52(tester, font);
-        await tester.pumpWidget(const GetMaterialApp(home: CustomerSelectScreen()));
+        await tester.pumpWidget(testApp(home: CustomerSelectScreen()));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.text('Resume'), findsNWidgets(2));
@@ -117,7 +120,7 @@ void main() {
 
     testWidgets('Start, Resume and Delete call the same actions', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: CustomerSelectScreen()));
+      await tester.pumpWidget(testApp(home: CustomerSelectScreen()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Start return'));
       await tester.ensureVisible(find.text('Resume').first);
@@ -133,7 +136,7 @@ void main() {
     testWidgets('customer search: type, results from the server, pick fills the field', (tester) async {
       eda52(tester, 1.0);
       con.selectedCompany.value = con.companyList.first;
-      await tester.pumpWidget(const GetMaterialApp(home: CustomerSelectScreen()));
+      await tester.pumpWidget(testApp(home: CustomerSelectScreen()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Search customer'));
       await tester.pumpAndSettle();
@@ -149,7 +152,7 @@ void main() {
     testWidgets('no unfinished returns → friendly empty state', (tester) async {
       eda52(tester, 1.0);
       con.unFinishedDocs.clear();
-      await tester.pumpWidget(const GetMaterialApp(home: CustomerSelectScreen()));
+      await tester.pumpWidget(testApp(home: CustomerSelectScreen()));
       await tester.pumpAndSettle();
       expect(find.text('All caught up'), findsOneWidget);
     });
@@ -159,7 +162,7 @@ void main() {
     for (final font in [1.0, 1.3]) {
       testWidgets('fits 360x640 with items (font x$font)', (tester) async {
         eda52(tester, font);
-        await tester.pumpWidget(const GetMaterialApp(home: ScanReturns()));
+        await tester.pumpWidget(testApp(home: ScanReturns()));
         await tester.pumpAndSettle();
         await tester.drag(find.byType(CustomScrollView), const Offset(0, -800));
         await tester.pumpAndSettle();
@@ -169,7 +172,7 @@ void main() {
 
     testWidgets('two different buttons: "Clear fields" vs "Delete all" (with confirm)', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: ScanReturns()));
+      await tester.pumpWidget(testApp(home: ScanReturns()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear fields'));
       expect(con.calls, ['clearPart']);
@@ -190,7 +193,7 @@ void main() {
 
     testWidgets('Save item, delete one item (after confirm), Review & confirm', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: ScanReturns()));
+      await tester.pumpWidget(testApp(home: ScanReturns()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save item'));
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -800));
@@ -205,7 +208,7 @@ void main() {
 
     testWidgets('expiry date appears only for NRE / EXP reasons', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: ScanReturns()));
+      await tester.pumpWidget(testApp(home: ScanReturns()));
       await tester.pumpAndSettle();
       expect(find.text('Expiry date'), findsNothing);
       con.selectedReason.value = con.reasons.last; // EXP
@@ -219,7 +222,7 @@ void main() {
     for (final font in [1.0, 1.3]) {
       testWidgets('fits 360x640 (font x$font)', (tester) async {
         eda52(tester, font);
-        await tester.pumpWidget(const GetMaterialApp(home: FinalizeReturnScreen()));
+        await tester.pumpWidget(testApp(home: FinalizeReturnScreen()));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.text('12'), findsOneWidget); // total quantity
@@ -228,7 +231,7 @@ void main() {
 
     testWidgets('Finalize → success → Done refreshes unfinished list and goes back 3 screens', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(GetMaterialApp(home: const Scaffold(body: Text('RETURN START'))));
+      await tester.pumpWidget(testApp(home: const Scaffold(body: Text('RETURN START'))));
       Get.to(() => const Scaffold(body: Text('SCAN')));
       await tester.pumpAndSettle();
       Get.to(() => const FinalizeReturnScreen());
@@ -245,7 +248,7 @@ void main() {
 
     testWidgets('item details show entries and total', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: FinalizeReturnScreen()));
+      await tester.pumpWidget(testApp(home: FinalizeReturnScreen()));
       await tester.pumpAndSettle();
       await tester.tap(find.byType(InkWell).at(1)); // first item card
       await tester.pumpAndSettle();

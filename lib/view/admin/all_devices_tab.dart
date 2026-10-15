@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sahayi_android/ui/ui.dart';
 import 'package:get/get.dart';
 
 import '../../controller/admin/server_logs_controller.dart';
@@ -77,7 +78,7 @@ class _AllDevicesTabState extends State<AllDevicesTab> with AutomaticKeepAliveCl
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.cloud_off, size: 40, color: Colors.grey),
+                    Icon(Icons.cloud_off, size: 40, color: context.c.faint),
                     const SizedBox(height: 8),
                     Text(con.error.value!, textAlign: TextAlign.center),
                     const SizedBox(height: 8),
@@ -184,7 +185,7 @@ class _SummaryBar extends StatelessWidget {
       Get.snackbar('Cleared', '$n logs deleted on the server', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       Get.snackbar('Not cleared', e.toString(),
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Get.context!.c.dangerSoft, colorText: Get.context!.c.dangerText);
     }
   }
 
@@ -195,7 +196,7 @@ class _SummaryBar extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: Get.context!.c.dangerSoft, foregroundColor: Get.context!.c.dangerText),
             onPressed: () => Get.back(result: true),
             child: const Text('Delete'),
           ),
@@ -223,7 +224,7 @@ class _SummaryBar extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: context.c.dangerSoft, foregroundColor: context.c.dangerText),
             onPressed: typed.text.trim() == 'DELETE ALL' ? () => Get.back(result: true) : null,
             child: const Text('Delete everything'),
           ),
@@ -257,7 +258,7 @@ class _SummaryBar extends StatelessWidget {
                         TextSpan(text: '${s?.total ?? 0} logs · ${s?.devices ?? 0} devices · '),
                         TextSpan(
                             text: '${s?.errors ?? 0} errors',
-                            style: TextStyle(color: (s?.errors ?? 0) > 0 ? Colors.red : null)),
+                            style: TextStyle(color: (s?.errors ?? 0) > 0 ? context.c.dangerText : null)),
                       ]),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -278,9 +279,9 @@ class _SummaryBar extends StatelessWidget {
                           value: 'device',
                           child: Text(device == null ? 'Clear one device…' : 'Clear $device')),
                       const PopupMenuItem(value: 'date', child: Text('Clear older than a date…')),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                           value: 'all',
-                          child: Text('Clear EVERYTHING…', style: TextStyle(color: Colors.red))),
+                          child: Text('Clear EVERYTHING…', style: TextStyle(color: context.c.dangerText))),
                     ],
                   ),
                   Icon(expanded ? Icons.expand_less : Icons.expand_more),
@@ -368,7 +369,7 @@ class _DevicePicker extends StatelessWidget {
             ListTile(
               dense: true,
               selected: selected == d.deviceId,
-              leading: Icon(Icons.phone_android, color: d.errors > 0 ? Colors.red : null),
+              leading: Icon(Icons.phone_android, color: d.errors > 0 ? context.c.dangerText : null),
               title: Text(d.deviceId!, overflow: TextOverflow.ellipsis),
               subtitle: Text(
                   'Last seen ${logTimeFormat.format(d.lastSeen)}\n'

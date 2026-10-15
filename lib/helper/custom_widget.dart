@@ -1,120 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../controller/connectivity_controller.dart';
 import '../service/app_logger.dart';
+import '../ui/ui.dart';
 
+/// Popups used by the controllers. Signatures and logging are unchanged from
+/// Version 1; only the look follows the Version 2 theme (light and dark).
 class CustomWidget {
-  InputDecoration inputDecoration(
-      {required BuildContext context, String? labelText, double? radius}) {
-    return InputDecoration(
-      labelText: labelText,
-      contentPadding:
-          const EdgeInsets.only(left: 21, right: 15, top: 15, bottom: 15),
-      filled: true,
-      fillColor: Colors.white,
-      labelStyle: Theme.of(context).textTheme.labelLarge?.merge(const TextStyle(
-            letterSpacing: 1.2,
-          )),
-      floatingLabelStyle:
-          Theme.of(context).textTheme.labelLarge?.merge(const TextStyle(
-                letterSpacing: 1.2,
-              )),
-      enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey),
-          borderRadius: BorderRadius.all(Radius.circular(radius ?? 15))),
-      border: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.transparent),
-        borderRadius: BorderRadius.all(Radius.circular(radius ?? 15)),
-      ),
-      focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey),
-          borderRadius: BorderRadius.all(Radius.circular(radius ?? 15))),
-      errorBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.red),
-        borderRadius: BorderRadius.all(
-          Radius.circular(radius ?? 15),
-        ),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.transparent),
-        borderRadius: BorderRadius.all(
-          Radius.circular(radius ?? 15),
-        ),
-      ),
-      errorStyle: Theme.of(context).textTheme.bodySmall?.merge(
-            const TextStyle(
-              color: Colors.red,
-              height: 0.5,
-            ),
-          ),
-    );
-  }
-
-  static AppBar customAppBar(
-    String title, {
-    bool? back,
-    bool? connectivity = true,
-    void Function()? logout,
-  }) {
-    var connecCon = Get.find<ConnectivityController>();
-    return AppBar(
-      automaticallyImplyLeading: back ?? false,
-      title: Text(title),
-      titleTextStyle: TextStyle(
-        color: Colors.white,
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-      ),
-      backgroundColor: Colors.blue,
-      leading: back == true
-          ? IconButton(
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.white,
-                size: 25,
-              ),
-              onPressed: back == true
-                  ? () {
-                      Get.back();
-                    }
-                  : null,
-            )
-          : null,
-      centerTitle: true,
-      actions: [
-        // if (connectivity == true)
-        //   Padding(
-        //     padding: const EdgeInsets.only(right: 20),
-        //     child: Obx(() => Container(
-        //           height: 25,
-        //           width: 25,
-        //           decoration: BoxDecoration(
-        //             borderRadius: BorderRadius.circular(50),
-        //             color: connecCon.isInternetConnected.value
-        //                 ? Colors.green
-        //                 : Colors.red,
-        //           ),
-        //         )),
-        //   ),
-        if (logout != null)
-          Padding(
-            padding: const EdgeInsets.only(right: 10, bottom: 0),
-            child: GestureDetector(
-              onTap: logout,
-              child: SizedBox(
-                height: 40,
-                width: 40,
-                child: Icon(
-                  Icons.logout,
-                  color: Colors.white,
-                  size: 25,
-                ),
-              ),
-            ),
-          )
-      ],
-    );
+  /// The colour a controller passes still decides the meaning:
+  /// red = error, orange = warning, anything else = success.
+  static ToastKind _kindOf(Color? backgroundColor) {
+    if (backgroundColor == Colors.red) return ToastKind.error;
+    if (backgroundColor == Colors.orange) return ToastKind.warning;
+    return ToastKind.success;
   }
 
   // custom snack bar
@@ -130,46 +28,30 @@ class CustomWidget {
     } else {
       AppLogger.info('Popup', '$title: $message');
     }
+    final context = Get.context;
+    final c = context == null ? AppColors.light : context.c;
+    final (Color bg, Color fg, IconData icon) = switch (_kindOf(backgroundColor)) {
+      ToastKind.error => (c.dangerSoft, c.dangerText, Icons.error_rounded),
+      ToastKind.warning => (c.warningSoft, c.warningText, Icons.warning_amber_rounded),
+      ToastKind.info => (c.primarySoft, c.onPrimarySoft, Icons.info_rounded),
+      ToastKind.success => (c.successSoft, c.successText, Icons.check_circle_rounded),
+    };
     Get.closeAllSnackbars();
     return Get.snackbar(
-      title, message,
-      backgroundColor: backgroundColor ?? Colors.green,
-      colorText: textColor ?? Colors.white,
+      title,
+      message,
+      backgroundColor: bg,
+      colorText: fg,
+      icon: Icon(icon, color: fg),
       isDismissible: true,
       snackPosition: SnackPosition.TOP,
-      animationDuration: const Duration(milliseconds: 500),
+      animationDuration: const Duration(milliseconds: 300),
       duration: Duration(seconds: duration ?? 3),
-      margin: const EdgeInsets.only(bottom: 15, left: 15, right: 15),
+      margin: const EdgeInsets.all(Space.md),
+      borderRadius: Radii.lg,
       snackStyle: SnackStyle.FLOATING,
-      // boxShadows: [
-      //   BoxShadow(
-      //       color: textColor.withOpacity(0.5),
-      //       spreadRadius: 3,
-      //       blurRadius: 7,
-      //       offset: const Offset(0, 10)),
-      // ],
-      borderColor: Colors.white,
+      borderColor: fg.withValues(alpha: 0.25),
       borderWidth: 1,
-      // titleText: Text(
-      //   title,
-      //   style: const TextStyle(
-      //     color: Colors.white,
-      //     fontWeight: FontWeight.w700,
-      //     fontFamily: "Gotham",
-      //     fontStyle: FontStyle.normal,
-      //     fontSize: 18,
-      //   ),
-      // ),
-      // messageText: Text(
-      //   message,
-      //   style: const TextStyle(
-      //     color: Colors.white,
-      //     fontWeight: FontWeight.w500,
-      //     fontFamily: "Gotham",
-      //     fontStyle: FontStyle.normal,
-      //     fontSize: 16,
-      //   ),
-      // )
     );
   }
 
@@ -182,69 +64,31 @@ class CustomWidget {
     void Function()? onPressedBack,
   }) {
     AppLogger.info('Dialog', '$title: $subTitle');
-    return Get.dialog(AlertDialog(
-      title: Center(
-          child: Text(
-        title,
-      )),
-      alignment: Alignment.center,
-      actionsAlignment: MainAxisAlignment.center,
-      content: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(subTitle),
-            // CustomWidgets.gap(h: 10),
-          ],
+    return Get.dialog(Builder(builder: (context) {
+      final danger = buttonColor == Colors.red;
+      return AlertDialog(
+        icon: Icon(
+          danger ? Icons.warning_amber_rounded : Icons.help_outline_rounded,
+          size: 36,
+          color: danger ? context.c.dangerText : context.c.primary,
         ),
-      ),
-      actionsPadding: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
-      actions: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            onPressedBack != null
-                ? Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        fixedSize: const Size(double.infinity, 40),
-                      ),
-                      onPressed: onPressedBack,
-                      child: const Text(
-                        "Back",
-                        style: TextStyle(
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  )
-                : SizedBox(),
-            SizedBox(width: onPressedBack != null ? 5 : 0),
+        title: Text(title, textAlign: TextAlign.center),
+        content: SingleChildScrollView(child: Text(subTitle, textAlign: TextAlign.center)),
+        actionsPadding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.lg),
+        actions: [
+          Row(children: [
+            if (onPressedBack != null) ...[
+              Expanded(child: AppButton.secondary(label: 'Back', onPressed: onPressedBack)),
+              const SizedBox(width: Space.sm),
+            ],
             Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: buttonColor ?? Colors.green,
-                  fixedSize: const Size(double.infinity, 40),
-                ),
-                onPressed: onPressed,
-                child: Text(
-                  okText ?? "Confirm",
-                  style: TextStyle(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+              child: danger
+                  ? AppButton.danger(label: okText ?? 'Confirm', onPressed: onPressed)
+                  : AppButton(label: okText ?? 'Confirm', onPressed: onPressed),
             ),
-          ],
-        ),
-      ],
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-    ));
+          ]),
+        ],
+      );
+    }));
   }
 }

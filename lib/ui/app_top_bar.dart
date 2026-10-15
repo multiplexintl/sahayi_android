@@ -6,6 +6,8 @@ import '../theme/app_tokens.dart';
 import 'app_button.dart';
 
 /// Compact app bar: back, optional badge + title, optional subtitle, actions.
+/// Sits on the card colour with a bottom line so it stands apart from the
+/// page background.
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final String? subtitle;
@@ -32,7 +34,10 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
     final c = context.c;
     final t = Theme.of(context).textTheme;
     return Material(
-      color: c.background,
+      color: c.surface,
+      shape: Border(bottom: BorderSide(color: c.border)),
+      elevation: Theme.of(context).brightness == Brightness.light ? 1 : 0,
+      shadowColor: Colors.black26,
       child: SafeArea(
         bottom: false,
         child: SizedBox(

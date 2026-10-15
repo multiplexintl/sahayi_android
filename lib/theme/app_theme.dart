@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'app_tokens.dart';
@@ -90,12 +91,15 @@ class AppTheme {
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
 
+      // Same look as AppTopBar: card colour + bottom line.
       appBarTheme: AppBarTheme(
-        backgroundColor: c.background,
+        backgroundColor: c.surface,
         foregroundColor: c.text,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        shape: Border(bottom: BorderSide(color: c.border)),
+        systemOverlayStyle: b == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
         centerTitle: false,
         toolbarHeight: Sizes.appBar,
         titleSpacing: 4,

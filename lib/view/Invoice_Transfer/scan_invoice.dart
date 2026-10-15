@@ -66,185 +66,183 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return V2Screen(
-      child: Builder(builder: (context) {
-        final c = context.c;
-        final t = Theme.of(context).textTheme;
-        // Fixed card height (grows with the system font size) so scrolling
-        // to an item is exact.
-        _itemExtent = 32 + MediaQuery.textScalerOf(context).scale(44);
+    return Builder(builder: (context) {
+      final c = context.c;
+      final t = Theme.of(context).textTheme;
+      // Fixed card height (grows with the system font size) so scrolling
+      // to an item is exact.
+      _itemExtent = 32 + MediaQuery.textScalerOf(context).scale(44);
 
-        return GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: Obx(() {
-            final doc = con.docMaster.value;
-            final isInvoice = con.isInvoice.value;
-            final items = doc.docDetails ?? const <DocDetail>[];
-            final done = items.where((i) => i.checkQty == i.shipQty).length;
-            final left = items.length - done;
-            final busy = con.scanIsLoading.value;
-            final selected = con.scannedItem.value;
-            final dateText = _formatDocDate(doc.docDate);
+      return GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Obx(() {
+          final doc = con.docMaster.value;
+          final isInvoice = con.isInvoice.value;
+          final items = doc.docDetails ?? const <DocDetail>[];
+          final done = items.where((i) => i.checkQty == i.shipQty).length;
+          final left = items.length - done;
+          final busy = con.scanIsLoading.value;
+          final selected = con.scannedItem.value;
+          final dateText = _formatDocDate(doc.docDate);
 
-            return Scaffold(
-              appBar: AppTopBar(
-                title: doc.docNum ?? (isInvoice ? 'Invoice' : 'Transfer'),
-                badge: DocTypeBadge(isInvoice ? 'I' : 'T'),
-                subtitle: [doc.custName, dateText].where((s) => s != null && s.isNotEmpty).join(' · '),
-                actions: [if (kDebugMode) _DeveloperMenu(con: con)],
-              ),
-              body: doc.docNum == null
-                  ? EmptyState(
-                      title: 'Nothing to scan',
-                      message: 'Sync a ${isInvoice ? 'invoice' : 'transfer'} first.',
-                    )
-                  : Column(children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.sm),
-                        child: ProgressCard(done: done, total: items.length),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: Space.screen),
-                        child: Form(
-                          key: _formKey,
-                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Expanded(
-                              child: AppTextField(
-                                controller: con.barcodeController,
-                                focusNode: con.barcodeFocusNode,
-                                enabled: !busy,
-                                hint: 'Scan barcode',
-                                prefixIcon: Icons.qr_code_scanner_rounded,
-                                onChanged: con.scrollToBarcode,
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) return 'Scan a barcode';
-                                  if (v.length < 10 || v.length > 14) return '10–14 characters';
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: Space.sm),
-                            SizedBox(
-                              width: 68,
-                              child: AppTextField(
-                                controller: con.qtyController,
-                                focusNode: con.qtyFocusNode,
-                                enabled: !busy,
-                                hint: 'Qty',
-                                textAlign: TextAlign.center,
-                                keyboardType: TextInputType.number,
-                                textInputAction: TextInputAction.go,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                onEditingComplete: con.saveQty,
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Qty' : null,
-                                style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                            ),
-                            const SizedBox(width: Space.sm),
-                            SizedBox(
-                              width: 52,
-                              child: AppButton(
-                                label: '',
-                                icon: Icons.check_rounded,
-                                loading: busy,
-                                onPressed: busy
-                                    ? null
-                                    : () {
-                                        if (_formKey.currentState?.validate() == true) con.saveQty();
-                                      },
-                              ),
-                            ),
-                          ]),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, 0),
-                        child: Row(children: [
-                          Icon(Icons.inventory_2_outlined, size: 16, color: c.muted),
-                          const SizedBox(width: 6),
+          return Scaffold(
+            appBar: AppTopBar(
+              title: doc.docNum ?? (isInvoice ? 'Invoice' : 'Transfer'),
+              badge: DocTypeBadge(isInvoice ? 'I' : 'T'),
+              subtitle: [doc.custName, dateText].where((s) => s != null && s.isNotEmpty).join(' · '),
+              actions: [if (kDebugMode) _DeveloperMenu(con: con)],
+            ),
+            body: doc.docNum == null
+                ? EmptyState(
+                    title: 'Nothing to scan',
+                    message: 'Sync a ${isInvoice ? 'invoice' : 'transfer'} first.',
+                  )
+                : Column(children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.sm),
+                      child: ProgressCard(done: done, total: items.length),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Space.screen),
+                      child: Form(
+                        key: _formKey,
+                        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Expanded(
-                            child: Text(
-                              selected.partName ?? 'Scan a barcode to pick an item',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: selected.partName == null
-                                  ? t.bodySmall
-                                  : t.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: c.accentText),
-                            ),
-                          ),
-                        ]),
-                      ),
-                      const SectionLabel('Items', trailing: Text('Checked / Shipped')),
-                      Expanded(
-                        child: GetBuilder<InvoiceOrTransferController>(builder: (_) {
-                          return ListView.builder(
-                            controller: con.scrollController,
-                            itemExtent: _itemExtent,
-                            padding: const EdgeInsets.fromLTRB(Space.screen, 0, Space.screen, 120),
-                            itemCount: items.length,
-                            itemBuilder: (context, index) {
-                              final item = items[index];
-                              final ship = item.shipQty ?? 0;
-                              final check = item.checkQty ?? 0;
-                              final state = item.barcode != null && item.barcode == selected.barcode
-                                  ? ItemState.active
-                                  : check == ship
-                                      ? ItemState.done
-                                      : check > 0
-                                          ? ItemState.partial
-                                          : ItemState.todo;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: Space.sm),
-                                child: ItemCard(
-                                  title: item.partName ?? '',
-                                  titleMaxLines: 1,
-                                  subtitle: '${item.partNum ?? ''} · ${item.barcode ?? ''}',
-                                  quantity: '$check / $ship',
-                                  state: state,
-                                  // Debug builds only (guarded in the controller): pre-fill this item.
-                                  onTap: kDebugMode ? () => con.testSave(item.barcode!, ship) : null,
-                                ),
-                              );
-                            },
-                          );
-                        }),
-                      ),
-                    ]),
-              bottomNavigationBar: doc.docNum == null
-                  ? null
-                  : SafeArea(
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(Space.screen, Space.sm, Space.screen, Space.md),
-                        decoration: BoxDecoration(
-                          color: c.background,
-                          border: Border(top: BorderSide(color: c.divider)),
-                        ),
-                        child: Row(children: [
-                          Expanded(
-                            child: AppButton.secondary(
-                              label: 'Clear fields',
-                              onPressed: busy ? null : con.clearInputFields,
+                            child: AppTextField(
+                              controller: con.barcodeController,
+                              focusNode: con.barcodeFocusNode,
+                              enabled: !busy,
+                              hint: 'Scan barcode',
+                              prefixIcon: Icons.qr_code_scanner_rounded,
+                              onChanged: con.scrollToBarcode,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Scan a barcode';
+                                if (v.length < 10 || v.length > 14) return '10–14 characters';
+                                return null;
+                              },
                             ),
                           ),
                           const SizedBox(width: Space.sm),
-                          Expanded(
-                            flex: 3,
+                          SizedBox(
+                            width: 68,
+                            child: AppTextField(
+                              controller: con.qtyController,
+                              focusNode: con.qtyFocusNode,
+                              enabled: !busy,
+                              hint: 'Qty',
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.go,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              onEditingComplete: con.saveQty,
+                              validator: (v) => (v == null || v.trim().isEmpty) ? 'Qty' : null,
+                              style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          const SizedBox(width: Space.sm),
+                          SizedBox(
+                            width: 52,
                             child: AppButton(
-                              label: 'Finalize',
-                              icon: Icons.task_alt_rounded,
-                              disabledLabel: left > 0 ? 'Finalize · $left left' : null,
-                              loading: busy && con.isFinalize.value,
-                              onPressed: busy || !con.isFinalize.value ? null : con.finalize,
+                              label: '',
+                              icon: Icons.check_rounded,
+                              loading: busy,
+                              onPressed: busy
+                                  ? null
+                                  : () {
+                                      if (_formKey.currentState?.validate() == true) con.saveQty();
+                                    },
                             ),
                           ),
                         ]),
                       ),
                     ),
-            );
-          }),
-        );
-      }),
-    );
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, 0),
+                      child: Row(children: [
+                        Icon(Icons.inventory_2_outlined, size: 16, color: c.muted),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            selected.partName ?? 'Scan a barcode to pick an item',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: selected.partName == null
+                                ? t.bodySmall
+                                : t.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: c.accentText),
+                          ),
+                        ),
+                      ]),
+                    ),
+                    const SectionLabel('Items', trailing: Text('Checked / Shipped')),
+                    Expanded(
+                      child: GetBuilder<InvoiceOrTransferController>(builder: (_) {
+                        return ListView.builder(
+                          controller: con.scrollController,
+                          itemExtent: _itemExtent,
+                          padding: const EdgeInsets.fromLTRB(Space.screen, 0, Space.screen, 120),
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            final ship = item.shipQty ?? 0;
+                            final check = item.checkQty ?? 0;
+                            final state = item.barcode != null && item.barcode == selected.barcode
+                                ? ItemState.active
+                                : check == ship
+                                    ? ItemState.done
+                                    : check > 0
+                                        ? ItemState.partial
+                                        : ItemState.todo;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: Space.sm),
+                              child: ItemCard(
+                                title: item.partName ?? '',
+                                titleMaxLines: 1,
+                                subtitle: '${item.partNum ?? ''} · ${item.barcode ?? ''}',
+                                quantity: '$check / $ship',
+                                state: state,
+                                // Debug builds only (guarded in the controller): pre-fill this item.
+                                onTap: kDebugMode ? () => con.testSave(item.barcode!, ship) : null,
+                              ),
+                            );
+                          },
+                        );
+                      }),
+                    ),
+                  ]),
+            bottomNavigationBar: doc.docNum == null
+                ? null
+                : SafeArea(
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(Space.screen, Space.sm, Space.screen, Space.md),
+                      decoration: BoxDecoration(
+                        color: c.background,
+                        border: Border(top: BorderSide(color: c.divider)),
+                      ),
+                      child: Row(children: [
+                        Expanded(
+                          child: AppButton.secondary(
+                            label: 'Clear fields',
+                            onPressed: busy ? null : con.clearInputFields,
+                          ),
+                        ),
+                        const SizedBox(width: Space.sm),
+                        Expanded(
+                          flex: 3,
+                          child: AppButton(
+                            label: 'Finalize',
+                            icon: Icons.task_alt_rounded,
+                            disabledLabel: left > 0 ? 'Finalize · $left left' : null,
+                            loading: busy && con.isFinalize.value,
+                            onPressed: busy || !con.isFinalize.value ? null : con.finalize,
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+          );
+        }),
+      );
+    });
   }
 }
 

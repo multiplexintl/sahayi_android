@@ -700,7 +700,7 @@ class ReturnController extends GetxController {
         child: Container(
           width: Get.width * 0.8,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Get.theme.colorScheme.surface, // light/dark aware (UI v2)
             borderRadius: BorderRadius.circular(16),
           ),
           child: Padding(
@@ -757,7 +757,7 @@ class ReturnController extends GetxController {
         child: Container(
           width: Get.width * 0.8,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Get.theme.colorScheme.surface, // light/dark aware (UI v2)
             borderRadius: BorderRadius.circular(16),
           ),
           child: Padding(

@@ -55,7 +55,8 @@ class _DetailedReportPageState extends State<DetailedReportPage> {
           KeyValueRow('Brand', item.brand),
           KeyValueRow('Barcode', item.barcode),
           KeyValueRow('Quantity', '${item.checkQty ?? 0}'),
-          if ((item.reasonCode ?? '').isNotEmpty) KeyValueRow('Reason', '${item.reasonCode} · ${item.reasonName ?? ''}'),
+          if ((item.reasonCode ?? '').isNotEmpty)
+            KeyValueRow('Reason', '${item.reasonCode} · ${item.reasonName ?? ''}'),
           if (item.docType == 'R' && (item.reasonCode == 'NRE' || item.reasonCode == 'EXP'))
             KeyValueRow('Expiry date', item.expiryDate),
           const SizedBox(height: Space.lg),
@@ -67,98 +68,94 @@ class _DetailedReportPageState extends State<DetailedReportPage> {
 
   @override
   Widget build(BuildContext context) {
-    return V2Screen(
-      child: Builder(builder: (context) {
-        final t = Theme.of(context).textTheme;
-        return GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: Obx(() {
-            final doc = con.detailedReport.value;
-            return Scaffold(
-              appBar: AppTopBar(
-                title: doc?.docNum ?? 'Report',
-                badge: doc == null ? null : DocTypeBadge(doc.docType),
-                subtitle: doc == null ? null : title(doc.docType),
-                actions: [
-                  if (doc != null)
-                    AppIconButton(
-                      icon: _searching ? Icons.close_rounded : Icons.search_rounded,
-                      tooltip: _searching ? 'Close search' : 'Find a barcode',
-                      onPressed: _toggleSearch,
-                    ),
-                ],
-              ),
-              body: con.isLoadingDetailed.value
-                  ? const Center(child: CircularProgressIndicator())
-                  : doc == null
-                      ? const EmptyState(title: 'No details found', message: 'Please go back and try again.')
-                      : Builder(builder: (context) {
-                          final all = doc.docDetails ?? const <DocDetail>[];
-                          final q = _query.trim().toLowerCase();
-                          final shown = q.isEmpty
-                              ? all
-                              : all.where((i) => (i.barcode ?? '').toLowerCase().contains(q)).toList();
-                          return ListView(
-                            padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
-                            children: [
-                              if (_searching) ...[
-                                AppTextField(
-                                  controller: _search,
-                                  autofocus: true,
-                                  hint: 'Scan or type a barcode',
-                                  prefixIcon: Icons.qr_code_scanner_rounded,
-                                  onChanged: (v) => setState(() => _query = v),
-                                ),
-                                const SizedBox(height: Space.md),
-                              ],
-                              AppCard(
-                                radius: Radii.lg,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: Space.sm),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4, bottom: 2),
-                                    child: doc.stat == 'D'
-                                        ? const StatusChip.progress('Downloaded')
-                                        : const StatusChip.done('Completed'),
-                                  ),
-                                  KeyValueRow('Company', doc.company),
-                                  KeyValueRow('Doc date', doc.docDate),
-                                  KeyValueRow('Customer', '${doc.custName ?? ''} · ${doc.custID ?? ''}'),
-                                  KeyValueRow('Scan time', doc.scanTime),
-                                  KeyValueRow('Scanned by', doc.userId),
-                                  KeyValueRow(doc.docType == 'R' ? 'Returned by' : 'Picked by', doc.pickedBy),
-                                ]),
+    return Builder(builder: (context) {
+      final t = Theme.of(context).textTheme;
+      return GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Obx(() {
+          final doc = con.detailedReport.value;
+          return Scaffold(
+            appBar: AppTopBar(
+              title: doc?.docNum ?? 'Report',
+              badge: doc == null ? null : DocTypeBadge(doc.docType),
+              subtitle: doc == null ? null : title(doc.docType),
+              actions: [
+                if (doc != null)
+                  AppIconButton(
+                    icon: _searching ? Icons.close_rounded : Icons.search_rounded,
+                    tooltip: _searching ? 'Close search' : 'Find a barcode',
+                    onPressed: _toggleSearch,
+                  ),
+              ],
+            ),
+            body: con.isLoadingDetailed.value
+                ? const Center(child: CircularProgressIndicator())
+                : doc == null
+                    ? const EmptyState(title: 'No details found', message: 'Please go back and try again.')
+                    : Builder(builder: (context) {
+                        final all = doc.docDetails ?? const <DocDetail>[];
+                        final q = _query.trim().toLowerCase();
+                        final shown =
+                            q.isEmpty ? all : all.where((i) => (i.barcode ?? '').toLowerCase().contains(q)).toList();
+                        return ListView(
+                          padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
+                          children: [
+                            if (_searching) ...[
+                              AppTextField(
+                                controller: _search,
+                                autofocus: true,
+                                hint: 'Scan or type a barcode',
+                                prefixIcon: Icons.qr_code_scanner_rounded,
+                                onChanged: (v) => setState(() => _query = v),
                               ),
-                              SectionLabel(
-                                'Items',
-                                padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
-                                trailing: Text(
-                                    q.isEmpty ? '${all.length}' : '${shown.length} of ${all.length}',
-                                    style: t.labelSmall),
-                              ),
-                              if (shown.isEmpty)
-                                EmptyState(title: 'No line with barcode "$_query"', image: 'assets/images/helper_1.png')
-                              else
-                                for (final item in shown)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: Space.sm),
-                                    child: ItemCard(
-                                      leading: '${all.indexOf(item) + 1}',
-                                      title: item.partName ?? '',
-                                      subtitle: '${item.partNum ?? ''} · ${item.barcode ?? ''}',
-                                      quantity: '${item.checkQty ?? 0}',
-                                      state: ItemState.plain,
-                                      statusLabel: item.reasonCode,
-                                      onTap: () => _showLine(context, item, all.indexOf(item) + 1),
-                                    ),
-                                  ),
+                              const SizedBox(height: Space.md),
                             ],
-                          );
-                        }),
-            );
-          }),
-        );
-      }),
-    );
+                            AppCard(
+                              radius: Radii.lg,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: Space.sm),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4, bottom: 2),
+                                  child: doc.stat == 'D'
+                                      ? const StatusChip.progress('Downloaded')
+                                      : const StatusChip.done('Completed'),
+                                ),
+                                KeyValueRow('Company', doc.company),
+                                KeyValueRow('Doc date', doc.docDate),
+                                KeyValueRow('Customer', '${doc.custName ?? ''} · ${doc.custID ?? ''}'),
+                                KeyValueRow('Scan time', doc.scanTime),
+                                KeyValueRow('Scanned by', doc.userId),
+                                KeyValueRow(doc.docType == 'R' ? 'Returned by' : 'Picked by', doc.pickedBy),
+                              ]),
+                            ),
+                            SectionLabel(
+                              'Items',
+                              padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
+                              trailing: Text(q.isEmpty ? '${all.length}' : '${shown.length} of ${all.length}',
+                                  style: t.labelSmall),
+                            ),
+                            if (shown.isEmpty)
+                              EmptyState(title: 'No line with barcode "$_query"', image: 'assets/images/helper_1.png')
+                            else
+                              for (final item in shown)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: Space.sm),
+                                  child: ItemCard(
+                                    leading: '${all.indexOf(item) + 1}',
+                                    title: item.partName ?? '',
+                                    subtitle: '${item.partNum ?? ''} · ${item.barcode ?? ''}',
+                                    quantity: '${item.checkQty ?? 0}',
+                                    state: ItemState.plain,
+                                    statusLabel: item.reasonCode,
+                                    onTap: () => _showLine(context, item, all.indexOf(item) + 1),
+                                  ),
+                                ),
+                          ],
+                        );
+                      }),
+          );
+        }),
+      );
+    });
   }
 }

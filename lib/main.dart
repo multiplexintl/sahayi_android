@@ -9,12 +9,15 @@ import 'controller/splash_controller.dart';
 import 'routes.dart';
 import 'service/app_logger.dart';
 import 'service/log_uploader.dart';
+import 'theme/app_theme.dart';
+import 'theme/theme_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLogger.init();
   _installErrorLogging();
   await GlobalConfiguration().loadFromAsset("config");
+  await ThemeService.init();
   _startLogUpload();
   AppLogger.info('AppStart', 'App started',
       details: 'Device: ${AppLogger.deviceSummary}, '
@@ -60,13 +63,20 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       builder: (context, child) {
         Get.put(SplashController());
-        return child!;
+        // Status bar icons readable on the light and the dark theme.
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          child: child!,
+        );
       },
       title: 'Sahayi',
       initialRoute: RouteLinks.splash,
       getPages: RouteGenerator.list,
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeService.to.mode.value,
       routingCallback: (routing) {
         // Track page changes only (not dialogs / bottom sheets).
         if (routing == null ||

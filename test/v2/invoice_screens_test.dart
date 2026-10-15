@@ -10,6 +10,7 @@ import 'package:sahayi_android/model/pickers/pickers.dart';
 import 'package:sahayi_android/view/Invoice_Transfer/invoice.dart';
 import 'package:sahayi_android/view/Invoice_Transfer/scan_invoice.dart';
 import 'package:sahayi_android/view/Invoice_Transfer/sync_invoice.dart';
+import 'test_app.dart';
 
 /// Real controller, but without the network calls in onInit.
 class TestController extends InvoiceOrTransferController {
@@ -44,7 +45,9 @@ void eda52(WidgetTester tester, double font) {
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
 
-void main() {
+void main() => bothThemes(_tests);
+
+void _tests() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // The controller creates an AudioPlayer (wrong-barcode sound); no audio in tests.
   for (final ch in ['xyz.luan/audioplayers.global', 'xyz.luan/audioplayers']) {
@@ -78,7 +81,7 @@ void main() {
   for (final font in [1.0, 1.3]) {
     testWidgets('Scan: fits 360x640, progress + reason on Finalize (font x$font)', (tester) async {
       eda52(tester, font);
-      await tester.pumpWidget(const GetMaterialApp(home: ScanInvoiceScreen()));
+      await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.text('2 of 6 items done'), findsOneWidget);
@@ -90,7 +93,7 @@ void main() {
 
   testWidgets('Scan: Save validates like before (empty barcode is refused)', (tester) async {
     eda52(tester, 1.0);
-    await tester.pumpWidget(const GetMaterialApp(home: ScanInvoiceScreen()));
+    await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.check_rounded).first);
     await tester.pumpAndSettle();
@@ -100,7 +103,7 @@ void main() {
 
   testWidgets('Scan: typing a barcode marks the item as scanning and scrolls to it', (tester) async {
     eda52(tester, 1.0);
-    await tester.pumpWidget(const GetMaterialApp(home: ScanInvoiceScreen()));
+    await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, '6858475000005'); // last item
     await tester.pumpAndSettle();
@@ -113,7 +116,7 @@ void main() {
   testWidgets('Scan: Finalize enabled only when all done, calls finalize()', (tester) async {
     eda52(tester, 1.0);
     con.isFinalize.value = true;
-    await tester.pumpWidget(const GetMaterialApp(home: ScanInvoiceScreen()));
+    await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Finalize'));
     expect(con.calls, contains('finalize'));
@@ -122,7 +125,7 @@ void main() {
   testWidgets('Hub: two steps, recent documents with status words', (tester) async {
     eda52(tester, 1.3);
     con.lastInvoices.assignAll([DocMaster(docNum: '25032700', stat: 'Y'), DocMaster(docNum: '25032179', stat: 'N')]);
-    await tester.pumpWidget(const GetMaterialApp(home: InvoiveTransferSceen()));
+    await tester.pumpWidget(testApp(home: InvoiveTransferSceen()));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('Sync invoice'), findsOneWidget);
@@ -137,7 +140,7 @@ void main() {
     testWidgets('Sync: fits, picks company, sync and delete call the same actions (font x$font)',
         (tester) async {
       eda52(tester, font);
-      await tester.pumpWidget(const GetMaterialApp(home: SyncInvoiceScreen()));
+      await tester.pumpWidget(testApp(home: SyncInvoiceScreen()));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 

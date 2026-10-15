@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sahayi_android/ui/ui.dart';
 import 'package:get/get.dart';
 import 'package:global_configuration/global_configuration.dart';
 
@@ -130,7 +131,7 @@ class _StatusBar extends StatelessWidget {
         TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, foregroundColor: Colors.white),
+              backgroundColor: Get.context!.c.dangerSoft, foregroundColor: Get.context!.c.dangerText),
           onPressed: () => Get.back(result: true),
           child: const Text('Clear'),
         ),
@@ -170,15 +171,15 @@ class _StatusBar extends StatelessWidget {
                         const TextSpan(text: ' · '),
                         TextSpan(
                             text: '$waiting waiting',
-                            style: TextStyle(color: waiting > 0 ? Colors.orange : null)),
+                            style: TextStyle(color: waiting > 0 ? context.c.warningText : null)),
                         const TextSpan(text: ' · '),
                         TextSpan(
                             text: '${s?.errors ?? 0} errors',
-                            style: TextStyle(color: (s?.errors ?? 0) > 0 ? Colors.red : null)),
+                            style: TextStyle(color: (s?.errors ?? 0) > 0 ? context.c.dangerText : null)),
                         if (rejected > 0)
                           TextSpan(
                               text: ' · $rejected rejected',
-                              style: const TextStyle(color: Colors.red)),
+                              style: TextStyle(color: context.c.dangerText)),
                       ]),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -202,11 +203,11 @@ class _StatusBar extends StatelessWidget {
                     icon: const Icon(Icons.delete_outline),
                     padding: EdgeInsets.zero,
                     onSelected: (onlySent) => _confirmClear(onlySent: onlySent),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: true, child: Text('Clear sent logs')),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: true, child: Text('Clear sent logs')),
                       PopupMenuItem(
                           value: false,
-                          child: Text('Clear ALL logs', style: TextStyle(color: Colors.red))),
+                          child: Text('Clear ALL logs', style: TextStyle(color: context.c.dangerText))),
                     ],
                   ),
                   Icon(expanded ? Icons.expand_less : Icons.expand_more),
@@ -230,7 +231,7 @@ class _StatusBar extends StatelessWidget {
                         style: small),
                     if (paused != null && DateTime.now().isBefore(paused))
                       Text('Uploads paused until ${logTimeFormat.format(paused)}',
-                          style: small?.copyWith(color: Colors.orange)),
+                          style: small?.copyWith(color: context.c.warningText)),
                     if (s?.oldest != null)
                       Text(
                           'Oldest ${logTimeFormat.format(s!.oldest!)} · newest ${logTimeFormat.format(s.newest!)}',

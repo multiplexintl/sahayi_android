@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sahayi_android/ui/ui.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -11,11 +12,16 @@ import '../../model/log_filter.dart';
 final DateFormat logTimeFormat = DateFormat('dd/MM/yyyy hh:mm a');
 final DateFormat logShortTimeFormat = logTimeFormat;
 
-Color levelColor(String? level) => switch (level) {
-      'ERROR' => Colors.red,
-      'WARN' => Colors.orange,
-      _ => Colors.blueGrey,
-    };
+/// Level colour for the current light/dark theme.
+Color levelColor(String? level) {
+  final context = Get.context;
+  final c = context == null ? AppColors.light : context.c;
+  return switch (level) {
+    'ERROR' => c.dangerText,
+    'WARN' => c.warningText,
+    _ => c.muted,
+  };
+}
 
 class LevelBadge extends StatelessWidget {
   final String? level;
@@ -467,7 +473,7 @@ class LogTile extends StatelessWidget {
                   child: Text(action,
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                       overflow: TextOverflow.ellipsis)),
-              if (trailingIcon != null) Icon(trailingIcon, size: 13, color: Colors.grey),
+              if (trailingIcon != null) Icon(trailingIcon, size: 13, color: context.c.faint),
             ]),
             const SizedBox(height: 2),
             Text(message,

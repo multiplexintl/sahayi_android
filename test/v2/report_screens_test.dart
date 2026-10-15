@@ -12,6 +12,7 @@ import 'package:sahayi_android/model/report/report.dart';
 import 'package:sahayi_android/model/user.dart';
 import 'package:sahayi_android/view/Report/detailed_report.dart';
 import 'package:sahayi_android/view/Report/report.dart';
+import 'test_app.dart';
 
 class TestHome extends HomeController {
   @override
@@ -57,7 +58,9 @@ void eda52(WidgetTester tester, double font) {
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
 
-void main() {
+void main() => bothThemes(_tests);
+
+void _tests() {
   TestWidgetsFlutterBinding.ensureInitialized();
   for (final ch in ['xyz.luan/audioplayers.global', 'xyz.luan/audioplayers']) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -76,7 +79,7 @@ void main() {
     for (final font in [1.0, 1.3]) {
       testWidgets('fits 360x640 before and after results (font x$font)', (tester) async {
         eda52(tester, font);
-        await tester.pumpWidget(const GetMaterialApp(home: ReportViewPage()));
+        await tester.pumpWidget(testApp(home: ReportViewPage()));
         await tester.pumpAndSettle();
         expect(find.text('No report yet'), findsOneWidget);
         await tester.tap(find.text('Show report'));
@@ -89,7 +92,7 @@ void main() {
 
     testWidgets('defaults kept: last 7 days, type All; chips change the type', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: ReportViewPage()));
+      await tester.pumpWidget(testApp(home: ReportViewPage()));
       await tester.pumpAndSettle();
       final f = DateFormat('dd-MM-yyyy');
       expect(con.fromDateController.value.text, f.format(DateTime.now().subtract(const Duration(days: 7))));
@@ -103,7 +106,7 @@ void main() {
 
     testWidgets('local filter and opening a document', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: ReportViewPage()));
+      await tester.pumpWidget(testApp(home: ReportViewPage()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Show report'));
       await tester.pumpAndSettle();
@@ -149,7 +152,7 @@ void main() {
     for (final font in [1.0, 1.3]) {
       testWidgets('fits 360x640 (font x$font)', (tester) async {
         eda52(tester, font);
-        await tester.pumpWidget(const GetMaterialApp(home: DetailedReportPage()));
+        await tester.pumpWidget(testApp(home: DetailedReportPage()));
         await tester.pumpAndSettle();
         await tester.drag(find.byType(ListView), const Offset(0, -1500));
         await tester.pumpAndSettle();
@@ -159,7 +162,7 @@ void main() {
 
     testWidgets('summary, barcode search filters lines, line details', (tester) async {
       eda52(tester, 1.0);
-      await tester.pumpWidget(const GetMaterialApp(home: DetailedReportPage()));
+      await tester.pumpWidget(testApp(home: DetailedReportPage()));
       await tester.pumpAndSettle();
       expect(find.text('Completed'), findsOneWidget);
       expect(find.text('Return report'), findsOneWidget);
