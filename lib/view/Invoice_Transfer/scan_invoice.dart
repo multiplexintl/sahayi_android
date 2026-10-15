@@ -1,709 +1,268 @@
-import 'package:auto_size_text_plus/auto_size_text_plus.dart';
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sahayi_android/controller/inv_trnf_controller.dart';
-import 'package:sahayi_android/helper/custom_colors.dart';
-import 'package:sahayi_android/helper/custom_widget.dart';
-import 'package:sahayi_android/widgets/button.dart';
+import 'package:sahayi_android/model/invoice/doc_detail.dart';
 
-class ScanInvoiceScreen extends StatelessWidget {
+import '../../ui/ui.dart';
+
+/// Scan invoice / transfer (Version 2).
+///
+/// Uses the controller exactly as Version 1 did: barcode typing ->
+/// scrollToBarcode(), qty "go" -> saveQty(), Save validates first,
+/// Clear -> clearInputFields(), Finalize -> finalize().
+class ScanInvoiceScreen extends StatefulWidget {
   const ScanInvoiceScreen({super.key});
 
   @override
+  State<ScanInvoiceScreen> createState() => _ScanInvoiceScreenState();
+}
+
+class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
+  final con = Get.find<InvoiceOrTransferController>();
+  final _formKey = GlobalKey<FormState>();
+  Worker? _scrollWorker;
+  double _itemExtent = 76;
+
+  @override
+  void initState() {
+    super.initState();
+    // The controller scrolls to the scanned item assuming 63 px rows. Our
+    // cards are taller, so correct the position right after (a microtask
+    // runs after the controller's own animateTo and replaces it).
+    _scrollWorker = ever(con.scannedItem, (DocDetail item) {
+      if (item.barcode == null) return;
+      scheduleMicrotask(() => _scrollTo(item.barcode!));
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollWorker?.dispose();
+    super.dispose();
+  }
+
+  void _scrollTo(String barcode) {
+    final items = con.docMaster.value.docDetails ?? const <DocDetail>[];
+    final index = items.indexWhere((i) => i.barcode == barcode);
+    final sc = con.scrollController;
+    if (index < 0 || !sc.hasClients) return;
+    final target = (index * _itemExtent).clamp(0.0, sc.position.maxScrollExtent);
+    sc.animateTo(target, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+  }
+
+  static String _formatDocDate(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    try {
+      return DateFormat('dd/MM/yyyy').format(DateFormat('M/d/yyyy h:mm:ss a').parse(raw));
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    GlobalKey<FormState> formKey = GlobalKey<FormState>();
-    var con = Get.find<InvoiceOrTransferController>();
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: CustomColors.scaffoldColor,
-        resizeToAvoidBottomInset: false,
-        appBar: CustomWidget.customAppBar("Scan", back: true),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 10, left: 10, right: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Obx(() => Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            con.fillAllDebug();
-                          },
-                          child: Text(
-                            "${con.isInvoice.value ? 'Invoice' : 'Transfer'} No:  ${con.docMaster.value.docNum ?? ''}",
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  color: Colors.blue,
-                                ),
-                          ),
-                        ),
-                        Text(
-                          "${con.isInvoice.value ? 'Invoice' : 'Transfer'} Date:",
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    color: Colors.blue,
-                                  ),
-                        ),
-                        Text(
-                          (() {
-                            try {
-                              return DateFormat("MM/dd/yyyy").format(
-                                  DateFormat("M/d/yyyy h:mm:ss a")
-                                      .parse("${con.docMaster.value.docDate}"));
-                            } catch (e) {
-                              return "";
-                            }
-                          })(),
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    color: Colors.blue,
-                                  ),
-                        ),
-                      ],
-                    )),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Obx(() => Text(
-                          "${(con.isInvoice.value) ? "Cust Name" : "Store Name"}: ${con.docMaster.value.custName ?? ''}",
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    color: Colors.red,
-                                  ),
-                        )),
-                  ),
-                ),
-                Form(
-                  key: formKey,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        // height: 50,
-                        width: 160,
-                        child: Obx(
-                          () => TextFormField(
-                            controller: con.barcodeController,
-                            enabled: !con.scanIsLoading.value,
-                            focusNode: con.barcodeFocusNode,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'This field cannot be empty';
-                              } else if (value.length < 10 ||
-                                  value.length > 14) {
-                                return 'Length must be between 10 and 14 characters';
-                              }
-                              return null; // Input is valid
-                            },
-                            onChanged: (value) {
-                              con.scrollToBarcode(
-                                  value); // Scroll when barcode is submitted
-                            },
-                            decoration: CustomWidget()
-                                .inputDecoration(context: context)
-                                .copyWith(
-                                  labelText: "Barcode",
-                                  contentPadding:
-                                      EdgeInsets.only(left: 12, right: 10),
-                                  errorStyle: TextStyle(
-                                    fontSize:
-                                        10.0, // Smaller text for error message
-                                    height:
-                                        0.8, // Adjust height for compactness
-                                  ),
-                                ),
-                          ),
-                        ),
+    return V2Screen(
+      child: Builder(builder: (context) {
+        final c = context.c;
+        final t = Theme.of(context).textTheme;
+        // Fixed card height (grows with the system font size) so scrolling
+        // to an item is exact.
+        _itemExtent = 32 + MediaQuery.textScalerOf(context).scale(44);
+
+        return GestureDetector(
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: Obx(() {
+            final doc = con.docMaster.value;
+            final isInvoice = con.isInvoice.value;
+            final items = doc.docDetails ?? const <DocDetail>[];
+            final done = items.where((i) => i.checkQty == i.shipQty).length;
+            final left = items.length - done;
+            final busy = con.scanIsLoading.value;
+            final selected = con.scannedItem.value;
+            final dateText = _formatDocDate(doc.docDate);
+
+            return Scaffold(
+              appBar: AppTopBar(
+                title: doc.docNum ?? (isInvoice ? 'Invoice' : 'Transfer'),
+                badge: DocTypeBadge(isInvoice ? 'I' : 'T'),
+                subtitle: [doc.custName, dateText].where((s) => s != null && s.isNotEmpty).join(' · '),
+                actions: [if (kDebugMode) _DeveloperMenu(con: con)],
+              ),
+              body: doc.docNum == null
+                  ? EmptyState(
+                      title: 'Nothing to scan',
+                      message: 'Sync a ${isInvoice ? 'invoice' : 'transfer'} first.',
+                    )
+                  : Column(children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.sm),
+                        child: ProgressCard(done: done, total: items.length),
                       ),
-                      SizedBox(width: 5),
-                      SizedBox(
-                        // height: 50,
-                        width: 70,
-                        child: Obx(
-                          () => TextFormField(
-                            controller: con.qtyController,
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.go,
-                            focusNode: con.qtyFocusNode,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onEditingComplete: () {
-                              con.saveQty();
-                            },
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'This field cannot be empty';
-                              }
-                              return null; // Input is valid
-                            },
-                            enabled: !con.scanIsLoading.value,
-                            decoration: CustomWidget()
-                                .inputDecoration(context: context)
-                                .copyWith(
-                                  labelText: "Qty",
-                                  contentPadding: EdgeInsets.only(left: 12),
-                                  errorStyle: TextStyle(
-                                    fontSize:
-                                        10.0, // Smaller text for error message
-                                    height:
-                                        0.8, // Adjust height for compactness
-                                  ),
-                                ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 5),
-                      Obx(() => ButtonWidget(
-                            width: 100,
-                            // height: 35,
-                            title: "Save",
-                            onPressed: con.scanIsLoading.value
-                                ? null
-                                : () {
-                                    // each save needs to trigger local database save
-                                    if (formKey.currentState?.validate() ==
-                                        true) {
-                                      con.saveQty();
-                                    }
-                                  },
-                            child: con.scanIsLoading.value
-                                ? SizedBox(
-                                    height: 15,
-                                    width: 15,
-                                    child: CircularProgressIndicator.adaptive(),
-                                  )
-                                : null,
-                          )),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 5),
-                // Row(
-                //   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                //   children: [
-                //     Obx(() => ButtonWidget(
-                //           width: 120,
-                //           height: 35,
-                //           title: "Clear",
-                // onPressed: con.scanIsLoading.value
-                //     ? null
-                //     : () {
-                //         FocusManager.instance.primaryFocus?.unfocus();
-                //         con.clearFields();
-                //       },
-                //         )),
-                //     Obx(() => ButtonWidget(
-                //           width: 120,
-                //           height: 35,
-                //           title: "Save",
-                //           onPressed: con.scanIsLoading.value
-                //               ? null
-                //               : () {
-                //                   // each save needs to trigger local database save
-                //                   if (formKey.currentState?.validate() ==
-                //                       true) {
-                //                     con.saveQty();
-                //                   }
-                //                 },
-                //           child: con.scanIsLoading.value
-                //               ? SizedBox(
-                //                   height: 15,
-                //                   width: 15,
-                //                   child: CircularProgressIndicator.adaptive(),
-                //                 )
-                //               : null,
-                //         )),
-                //   ],
-                // ),
-                SizedBox(height: 5),
-                Obx(() => Text(
-                      "Item Name: ${con.scannedItem.value.partName ?? ''}",
-                      style: Theme.of(context).textTheme.titleSmall,
-                    )),
-                SizedBox(height: 10),
-                // Table using listvie builder
-                HeadingWidget2(),
-                Expanded(
-                  child: Obx(() => con.docMaster.value.docNum == null
-                      ? Center(
-                          child: Text("No Data"),
-                        )
-                      : GetBuilder<InvoiceOrTransferController>(
-                          builder: (con) {
-                            return ListView.builder(
-                              controller: con.scrollController,
-                              shrinkWrap: true,
-                              itemCount: con.docMaster.value.docDetails?.length,
-                              padding: EdgeInsets.only(bottom: 230),
-                              itemBuilder: (context, index) {
-                                var item =
-                                    con.docMaster.value.docDetails?[index];
-                                return GestureDetector(
-                                  onTap: () {
-                                    con.testSave(item.barcode!, item.shipQty!);
-                                  },
-                                  child: TableRowWidget2(
-                                    index: index + 1,
-                                    partNum: "${item?.partNum}",
-                                    partName: "${item?.partName}",
-                                    barcode: "${item?.barcode}",
-                                    qty1: item!.shipQty!,
-                                    qty2: item.checkQty!,
-                                    bgColor: item.checkQty == item.shipQty
-                                        ? Colors.green.shade300
-                                        : Colors.red.shade100,
-                                    textColor: item.checkQty == item.shipQty
-                                        ? Colors.white
-                                        : Colors.black,
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        )),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Obx(() => ButtonWidget(
-                            title: "Clear",
-                            height: 48,
-                            width: 150,
-                            onPressed: con.scanIsLoading.value
-                                ? null
-                                : () {
-                                    con.clearInputFields();
-                                  },
-                            onLongPress: () {
-                              con.clearAllDebug();
-                            },
-                          )),
-                      Obx(() => ButtonWidget(
-                            title: "Finalize ",
-                            height: 48,
-                            width: 150,
-                            backgroundColor: con.isFinalize.value
-                                ? Colors.green
-                                : Colors.grey,
-                            onPressed:
-                                con.scanIsLoading.value || !con.isFinalize.value
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Space.screen),
+                        child: Form(
+                          key: _formKey,
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Expanded(
+                              child: AppTextField(
+                                controller: con.barcodeController,
+                                focusNode: con.barcodeFocusNode,
+                                enabled: !busy,
+                                hint: 'Scan barcode',
+                                prefixIcon: Icons.qr_code_scanner_rounded,
+                                onChanged: con.scrollToBarcode,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return 'Scan a barcode';
+                                  if (v.length < 10 || v.length > 14) return '10–14 characters';
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: Space.sm),
+                            SizedBox(
+                              width: 68,
+                              child: AppTextField(
+                                controller: con.qtyController,
+                                focusNode: con.qtyFocusNode,
+                                enabled: !busy,
+                                hint: 'Qty',
+                                textAlign: TextAlign.center,
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.go,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                onEditingComplete: con.saveQty,
+                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Qty' : null,
+                                style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                            const SizedBox(width: Space.sm),
+                            SizedBox(
+                              width: 52,
+                              child: AppButton(
+                                label: '',
+                                icon: Icons.check_rounded,
+                                loading: busy,
+                                onPressed: busy
                                     ? null
                                     : () {
-                                        con.finalize();
+                                        if (_formKey.currentState?.validate() == true) con.saveQty();
                                       },
-                            child: con.scanIsLoading.value
-                                ? SizedBox(
-                                    height: 15,
-                                    width: 15,
-                                    child: CircularProgressIndicator.adaptive(),
-                                  )
-                                : null,
-                          )),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class TableRowWidget2 extends StatelessWidget {
-  final int index;
-  final String partNum;
-  final String partName;
-  final String barcode;
-  final int qty1;
-  final int qty2;
-  final Color bgColor;
-  final Color textColor;
-
-  const TableRowWidget2({
-    super.key,
-    required this.index,
-    required this.partNum,
-    required this.partName,
-    required this.barcode,
-    required this.qty1,
-    required this.qty2,
-    required this.bgColor,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.only(left: 0, right: 0),
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.white,
-            width: 1,
-          ),
-        ),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 30,
-              child: Text(
-                " $index",
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: textColor),
-              ),
-            ),
-            VerticalDivider(
-              color: Colors.white,
-              width: 1,
-            ),
-            SizedBox(
-              width: 206,
-              child: Padding(
-                padding:
-                    const EdgeInsets.only(left: 5, top: 8, bottom: 8, right: 5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      color: Colors.white,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          SizedBox(
-                            height: 20,
-                            width: 90,
-                            child: AutoSizeText(partNum,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    )),
+                              ),
+                            ),
+                          ]),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, 0),
+                        child: Row(children: [
+                          Icon(Icons.inventory_2_outlined, size: 16, color: c.muted),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              selected.partName ?? 'Scan a barcode to pick an item',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: selected.partName == null
+                                  ? t.bodySmall
+                                  : t.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: c.accentText),
+                            ),
                           ),
-                          SizedBox(
-                            height: 20,
-                            width: 100,
-                            child: AutoSizeText(barcode,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    )),
+                        ]),
+                      ),
+                      const SectionLabel('Items', trailing: Text('Checked / Shipped')),
+                      Expanded(
+                        child: GetBuilder<InvoiceOrTransferController>(builder: (_) {
+                          return ListView.builder(
+                            controller: con.scrollController,
+                            itemExtent: _itemExtent,
+                            padding: const EdgeInsets.fromLTRB(Space.screen, 0, Space.screen, 120),
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              final ship = item.shipQty ?? 0;
+                              final check = item.checkQty ?? 0;
+                              final state = item.barcode != null && item.barcode == selected.barcode
+                                  ? ItemState.active
+                                  : check == ship
+                                      ? ItemState.done
+                                      : check > 0
+                                          ? ItemState.partial
+                                          : ItemState.todo;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: Space.sm),
+                                child: ItemCard(
+                                  title: item.partName ?? '',
+                                  titleMaxLines: 1,
+                                  subtitle: '${item.partNum ?? ''} · ${item.barcode ?? ''}',
+                                  quantity: '$check / $ship',
+                                  state: state,
+                                  // Debug builds only (guarded in the controller): pre-fill this item.
+                                  onTap: kDebugMode ? () => con.testSave(item.barcode!, ship) : null,
+                                ),
+                              );
+                            },
+                          );
+                        }),
+                      ),
+                    ]),
+              bottomNavigationBar: doc.docNum == null
+                  ? null
+                  : SafeArea(
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(Space.screen, Space.sm, Space.screen, Space.md),
+                        decoration: BoxDecoration(
+                          color: c.background,
+                          border: Border(top: BorderSide(color: c.divider)),
+                        ),
+                        child: Row(children: [
+                          Expanded(
+                            child: AppButton.secondary(
+                              label: 'Clear fields',
+                              onPressed: busy ? null : con.clearInputFields,
+                            ),
                           ),
-                        ],
+                          const SizedBox(width: Space.sm),
+                          Expanded(
+                            flex: 3,
+                            child: AppButton(
+                              label: 'Finalize',
+                              icon: Icons.task_alt_rounded,
+                              disabledLabel: left > 0 ? 'Finalize · $left left' : null,
+                              loading: busy && con.isFinalize.value,
+                              onPressed: busy || !con.isFinalize.value ? null : con.finalize,
+                            ),
+                          ),
+                        ]),
                       ),
                     ),
-                    Text(
-                      partName,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: textColor),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Spacer(),
-            VerticalDivider(
-              color: Colors.white,
-              width: 1,
-            ),
-            SizedBox(
-                width: 50,
-                child: Center(
-                  child: Text(
-                    "$qty1",
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: textColor),
-                  ),
-                )),
-            VerticalDivider(
-              color: Colors.white,
-              width: 1,
-            ),
-            SizedBox(
-                width: 50,
-                child: Center(
-                  child: Text(
-                    "$qty2",
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: textColor),
-                  ),
-                )),
-          ],
-        ),
-      ),
+            );
+          }),
+        );
+      }),
     );
   }
 }
 
-class HeadingWidget2 extends StatelessWidget {
-  const HeadingWidget2({
-    super.key,
-  });
+/// Debug builds only: the developer shortcuts that used to be hidden gestures.
+class _DeveloperMenu extends StatelessWidget {
+  final InvoiceOrTransferController con;
+  const _DeveloperMenu({required this.con});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.3),
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.black,
-            width: 1,
-          ),
-        ),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 30,
-              child: Text(" No", style: Theme.of(context).textTheme.bodyMedium),
-            ),
-            VerticalDivider(
-              color: Colors.black,
-              width: 1,
-            ),
-            SizedBox(
-              width: 190,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 5, top: 8, bottom: 8),
-                child: Text("Part Num \\ Barcode\nPartName",
-                    style: Theme.of(context).textTheme.bodyMedium),
-              ),
-            ),
-            Spacer(),
-            VerticalDivider(
-              color: Colors.black,
-              width: 1,
-            ),
-            SizedBox(
-                width: 50,
-                child: Center(
-                  child:
-                      Text("Q1", style: Theme.of(context).textTheme.bodyMedium),
-                )),
-            VerticalDivider(
-              color: Colors.black,
-              width: 1,
-            ),
-            SizedBox(
-                width: 50,
-                child: Center(
-                  child:
-                      Text("Q2", style: Theme.of(context).textTheme.bodyMedium),
-                )),
-          ],
-        ),
-      ),
+    return PopupMenuButton<String>(
+      tooltip: 'Developer tools',
+      icon: const Icon(Icons.build_circle_outlined),
+      onSelected: (v) => v == 'fill' ? con.fillAllDebug() : con.clearAllDebug(),
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'fill', child: Text('Developer: mark all checked')),
+        PopupMenuItem(value: 'clear', child: Text('Developer: reset all to 0')),
+      ],
     );
   }
 }
-
-// class HeadingWidget extends StatelessWidget {
-//   const HeadingWidget({
-//     super.key,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       height: 30,
-//       width: double.infinity,
-//       decoration: BoxDecoration(
-//           color: Colors.blueGrey.withOpacity(0.3),
-//           border: Border.all(
-//             color: Colors.black,
-//             width: 1,
-//           )),
-//       padding: EdgeInsets.only(left: 5, right: 5),
-//       child: IntrinsicHeight(
-//         child: Row(
-//           crossAxisAlignment: CrossAxisAlignment.center,
-//           children: [
-//             SizedBox(
-//               width: 24,
-//               child: Text("No", style: Theme.of(context).textTheme.bodyMedium),
-//             ),
-//             VerticalDivider(
-//               color: Colors.black,
-//               width: 1,
-//             ),
-//             SizedBox(
-//               width: 145,
-//               child: Text(" Part Num\\PartName",
-//                   style: Theme.of(context).textTheme.bodyMedium),
-//             ),
-//             VerticalDivider(
-//               color: Colors.black,
-//               width: 1,
-//             ),
-//             SizedBox(
-//               width: 100,
-//               child: Text(" Barcode",
-//                   style: Theme.of(context).textTheme.bodyMedium),
-//             ),
-//             VerticalDivider(
-//               color: Colors.black,
-//               width: 1,
-//             ),
-//             SizedBox(
-//                 width: 30,
-//                 child:
-//                     Text(" Q1", style: Theme.of(context).textTheme.bodyMedium)),
-//             VerticalDivider(
-//               color: Colors.black,
-//               width: 1,
-//             ),
-//             SizedBox(
-//                 width: 30,
-//                 child:
-//                     Text(" Q2", style: Theme.of(context).textTheme.bodyMedium)),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-// class TableRowWidget extends StatelessWidget {
-//   final int index;
-//   final String partNumName;
-//   final String barcode;
-//   final int qty1;
-//   final int qty2;
-//   final Color bgColor;
-//   final Color textColor;
-
-//   const TableRowWidget({
-//     super.key,
-//     required this.index,
-//     required this.partNumName,
-//     required this.barcode,
-//     required this.qty1,
-//     required this.qty2,
-//     required this.bgColor,
-//     required this.textColor,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       width: double.infinity,
-//       padding: EdgeInsets.only(left: 0, right: 0),
-//       decoration: BoxDecoration(
-//         color: bgColor,
-//         border: Border(
-//           bottom: BorderSide(
-//             color: Colors.white,
-//             width: 1,
-//           ),
-//         ),
-//       ),
-//       child: IntrinsicHeight(
-//         child: Row(
-//           crossAxisAlignment: CrossAxisAlignment.center,
-//           children: [
-//             SizedBox(
-//               width: 30,
-//               child: Text(
-//                 " $index",
-//                 style: Theme.of(context)
-//                     .textTheme
-//                     .bodyMedium
-//                     ?.copyWith(color: textColor),
-//               ),
-//             ),
-//             VerticalDivider(
-//               color: Colors.white,
-//               width: 1,
-//             ),
-//             SizedBox(
-//               width: 145,
-//               child: Text(
-//                 partNumName,
-//                 style: Theme.of(context)
-//                     .textTheme
-//                     .bodyMedium
-//                     ?.copyWith(color: textColor),
-//               ),
-//             ),
-//             VerticalDivider(
-//               color: Colors.white,
-//               width: 1,
-//             ),
-//             SizedBox(
-//                 width: 100,
-//                 child: Text(
-//                   barcode,
-//                   style: Theme.of(context)
-//                       .textTheme
-//                       .bodyMedium
-//                       ?.copyWith(color: textColor),
-//                 )),
-//             VerticalDivider(
-//               color: Colors.white,
-//               width: 1,
-//             ),
-//             SizedBox(
-//                 width: 30,
-//                 child: Center(
-//                   child: Text(
-//                     "$qty1",
-//                     style: Theme.of(context)
-//                         .textTheme
-//                         .bodyMedium
-//                         ?.copyWith(color: textColor),
-//                   ),
-//                 )),
-//             VerticalDivider(
-//               color: Colors.white,
-//               width: 1,
-//             ),
-//             SizedBox(
-//                 width: 30,
-//                 child: Center(
-//                   child: Text(
-//                     "$qty2",
-//                     style: Theme.of(context)
-//                         .textTheme
-//                         .bodyMedium
-//                         ?.copyWith(color: textColor),
-//                   ),
-//                 )),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }

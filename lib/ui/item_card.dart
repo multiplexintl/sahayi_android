@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
 import 'badges.dart';
 
-enum ItemState { todo, active, done, error }
+enum ItemState { todo, partial, active, done, error }
 
 /// One line of a document: name, codes, quantity and a status chip.
 /// [ItemState.active] (amber) marks the item being scanned right now.
@@ -17,6 +17,7 @@ class ItemCard extends StatelessWidget {
   final String? leading; // e.g. line number
   final Widget? trailing; // e.g. delete / view button
   final VoidCallback? onTap;
+  final int titleMaxLines;
 
   const ItemCard({
     super.key,
@@ -28,6 +29,7 @@ class ItemCard extends StatelessWidget {
     this.leading,
     this.trailing,
     this.onTap,
+    this.titleMaxLines = 2,
   });
 
   @override
@@ -39,6 +41,7 @@ class ItemCard extends StatelessWidget {
       ItemState.active => (c.accentSoft, c.accent, 1.5),
       ItemState.error => (c.dangerSoft, c.dangerBorder, 1.0),
       ItemState.todo => (c.surface, c.divider, 1.0),
+      ItemState.partial => (c.surface, c.divider, 1.0),
     };
     final chip = switch (state) {
       ItemState.done => StatusChip.done(statusLabel ?? 'Done', small: true),
@@ -46,6 +49,7 @@ class ItemCard extends StatelessWidget {
           kind: StatusKind.warning, label: statusLabel ?? 'Scanning', icon: Icons.qr_code_scanner_rounded, small: true),
       ItemState.error => StatusChip.error(statusLabel ?? 'Mismatch', small: true),
       ItemState.todo => StatusChip.todo(statusLabel ?? 'To do', small: true),
+      ItemState.partial => StatusChip.progress(statusLabel ?? 'Partial', small: true),
     };
 
     return Material(
@@ -66,7 +70,7 @@ class ItemCard extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(title,
-                    maxLines: 2,
+                    maxLines: titleMaxLines,
                     overflow: TextOverflow.ellipsis,
                     style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
                 if (subtitle != null)
