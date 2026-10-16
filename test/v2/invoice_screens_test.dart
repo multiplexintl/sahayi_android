@@ -158,9 +158,9 @@ void _tests() {
   testWidgets('Hub: the document on this scanner is marked; others say "sync again"', (tester) async {
     eda52(tester, 1.3);
     con.lastInvoices.assignAll([
-      DocMaster(docNum: '25032800', stat: 'N'),
       DocMaster(docNum: '25032179', stat: 'N'),
       DocMaster(docNum: '25032700', stat: 'Y'),
+      DocMaster(docNum: '25032800', stat: 'N'), // the one on the scanner, oldest
     ]);
     con.currentDocNum.value = '25032800';
     await tester.pumpWidget(testApp(home: InvoiveTransferSceen()));
@@ -173,6 +173,10 @@ void _tests() {
     expect(find.text('Completed'), findsOneWidget);
     final current = find.ancestor(of: find.text('On scanner'), matching: find.byType(AppCard)).first;
     expect(find.descendant(of: current, matching: find.text('25032800')), findsOneWidget);
+    // and it is on top, even though it is not the newest
+    double top(String n) => tester.getTopLeft(find.text(n)).dy;
+    expect(top('25032800'), lessThan(top('25032179')));
+    expect(top('25032800'), lessThan(top('25032700')));
   });
 
   testWidgets('Sync: keyboard Done on the number closes the keyboard and opens the picker list',

@@ -49,7 +49,14 @@ class InvoiveTransferSceen extends StatelessWidget {
                   Space.xs, Space.xl, Space.xs, Space.sm),
             ),
             Obx(() {
-              final recent = con.lastInvoices;
+              // The one being scanned on this scanner first, then the rest as before.
+              final current = con.currentDocNum.value;
+              bool isCurrent(DocMaster d) =>
+                  d.stat != 'Y' && d.docNum == current;
+              final recent = [
+                ...con.lastInvoices.where(isCurrent),
+                ...con.lastInvoices.where((d) => !isCurrent(d)),
+              ];
               if (recent.isEmpty) {
                 return EmptyState(
                   title: 'No ${noun}s yet',
