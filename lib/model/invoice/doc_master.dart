@@ -65,13 +65,16 @@ class DocMaster {
     String? docType = json['DocType'] as String?;
     String? custID = json['CustNum'] as String?;
 
-    // If docType is 'R' and docNum starts with first 4 digits of custID, remove them
+    // Returns are stored as customer ID + document number (e.g. 1308 + R1).
+    // Remove exactly the customer ID, whatever its length (IDs are 4 digits
+    // today, 1000–9110; the next ones will have 5).
     if (docType == 'R' &&
         docNum != null &&
         custID != null &&
-        docNum.length > 4 &&
-        docNum.startsWith(custID.substring(0, 4))) {
-      docNum = docNum.substring(4); // Remove first 4 digits
+        custID.isNotEmpty &&
+        docNum.length > custID.length &&
+        docNum.startsWith(custID)) {
+      docNum = docNum.substring(custID.length);
     }
 
     return DocMaster(
