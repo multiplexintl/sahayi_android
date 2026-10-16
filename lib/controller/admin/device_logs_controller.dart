@@ -27,6 +27,9 @@ class DeviceLogsController extends GetxController {
   final hasMore = true.obs;
   final uploading = false.obs;
 
+  /// "Full logging" end time, null when off (default).
+  final fullLoggingUntil = Rxn<DateTime>(AppLogger.fullLoggingUntil);
+
   Timer? _searchDebounce;
 
   @override
@@ -118,6 +121,13 @@ class DeviceLogsController extends GetxController {
     } finally {
       uploading.value = false;
     }
+  }
+
+  /// Full logging on (INFO saved too, for 24 hours) or off.
+  Future<void> setFullLogging(bool on) async {
+    await AppLogger.setFullLogging(on);
+    fullLoggingUntil.value = AppLogger.fullLoggingUntil;
+    await refreshAll();
   }
 
   /// [onlySent] keeps logs that have not reached the server yet.

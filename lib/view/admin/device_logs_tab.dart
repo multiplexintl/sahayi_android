@@ -180,6 +180,10 @@ class _StatusBar extends StatelessWidget {
                           TextSpan(
                               text: ' · $rejected rejected',
                               style: TextStyle(color: context.c.dangerText)),
+                        if (con.fullLoggingUntil.value != null)
+                          TextSpan(
+                              text: ' · FULL',
+                              style: TextStyle(color: context.c.warningText, fontWeight: FontWeight.w800)),
                       ]),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -221,6 +225,19 @@ class _StatusBar extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      title: const Text('Full logging (24 h)'),
+                      subtitle: Text(
+                          con.fullLoggingUntil.value == null
+                              ? 'Off: only errors and warnings are saved'
+                              : 'On until ${logTimeFormat.format(con.fullLoggingUntil.value!)}: every step is saved',
+                          style: small),
+                      value: con.fullLoggingUntil.value != null,
+                      onChanged: con.setFullLogging,
+                    ),
                     Text(
                         'Sent ${s?.sent ?? 0} · Waiting $waiting · Rejected $rejected · '
                         'Warnings ${s?.warnings ?? 0}',

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../db/log_db.dart';
 import '../helper/http_client_helper.dart';
+import 'app_logger.dart';
 
 /// Sends device logs to POST {api}/v2/Logs automatically.
 ///
@@ -69,6 +70,8 @@ class LogUploader {
     final endpoint = _endpoint;
     final db = _db;
     if (endpoint == null || db == null) return 0;
+    AppLogger.reportRepeats(); // "happened N more times" rows, if any are due
+    await AppLogger.flush();
     if (force) _pausedUntil = null;
     if (_pausedUntil != null && DateTime.now().isBefore(_pausedUntil!)) return 0;
     if (_busy) {

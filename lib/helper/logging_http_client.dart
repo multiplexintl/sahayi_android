@@ -1,18 +1,38 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../service/app_logger.dart';
 
-/// Wraps an [http.Client] and logs every request: URL (passwords masked),
-/// status code, duration and, on failure, the exact kind of error.
+/// Wraps an [http.Client] and logs requests: URL (passwords masked), status
+/// code and duration.
+/// - Success: only a "recent step" in memory, not saved, unless it took
+///   longer than [slowAfter] (saved as WARN "SlowResponse").
+/// - 4xx (WARN) / 5xx (ERROR) / no response (ERROR "HttpFailed"): saved with
+///   the data sent and the server's answer (each capped at [maxBody]).
 /// Responses and errors are passed through unchanged.
 class LoggingClient extends http.BaseClient {
   final http.Client _inner;
   LoggingClient(this._inner);
 
   static final _secretParams = RegExp(r'(pwd|password)=[^&]*', caseSensitive: false);
+  static final _secretJson =
+      RegExp(r'("(?:pwd|password)"\s*:\s*)"[^"]*"', caseSensitive: false);
+
+  static Duration slowAfter = const Duration(seconds: 10);
+  static const int maxBody = 4000;
+
+  /// Request body as text for the log: passwords masked, capped.
+  static String? requestBody(http.BaseRequest request) {
+    if (request is! http.Request || request.body.isEmpty) return null;
+    return cap(request.body.replaceAllMapped(_secretJson, (m) => '${m[1]}"***"'));
+  }
+
+  static String cap(String text) => text.length <= maxBody
+      ? text
+      : '${text.substring(0, maxBody)}... (${text.length - maxBody} more chars)';
 
   static String maskUrl(Uri url) =>
       url.toString().replaceAllMapped(_secretParams, (m) => '${m[1]}=***');
@@ -34,14 +54,39 @@ class LoggingClient extends http.BaseClient {
       final status = response.statusCode;
       final message = '${request.method} $url → $status in ${ms}ms';
 
-      if (status >= 500) {
-        AppLogger.error('Http', message);
-      } else if (status >= 400) {
-        AppLogger.warn('Http', message);
-      } else {
-        AppLogger.info('Http', message);
+      if (status < 400) {
+        if (stopwatch.elapsed > slowAfter) {
+          AppLogger.warn('SlowResponse', message);
+        } else {
+          AppLogger.info('Http', message);
+        }
+        return response;
       }
-      return response;
+
+      // Failure: read the server's answer for the log, then hand the same
+      // bytes on to the caller.
+      final full = await http.Response.fromStream(response);
+      final sent = requestBody(request);
+      final answer = utf8.decode(full.bodyBytes, allowMalformed: true);
+      final details = [
+        if (sent != null) 'Sent: $sent',
+        'Response: ${answer.isEmpty ? '(empty)' : cap(answer)}',
+      ].join('\n');
+      if (status >= 500) {
+        AppLogger.error('Http', message, details: details);
+      } else {
+        AppLogger.warn('Http', message, details: details);
+      }
+      return http.StreamedResponse(
+        http.ByteStream.fromBytes(full.bodyBytes),
+        status,
+        contentLength: full.bodyBytes.length,
+        request: response.request,
+        headers: response.headers,
+        isRedirect: response.isRedirect,
+        persistentConnection: response.persistentConnection,
+        reasonPhrase: response.reasonPhrase,
+      );
     } catch (e, st) {
       final ms = stopwatch.elapsedMilliseconds;
       AppLogger.error(
@@ -49,6 +94,7 @@ class LoggingClient extends http.BaseClient {
         '${request.method} $url failed after ${ms}ms: ${describe(e)}',
         error: e,
         stack: st,
+        details: requestBody(request) == null ? null : 'Sent: ${requestBody(request)}',
       );
       rethrow;
     }

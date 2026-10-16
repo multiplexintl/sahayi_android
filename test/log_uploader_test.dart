@@ -119,7 +119,7 @@ void main() {
     AppLogger.onSaved = LogUploader.notify;
     startWith((_) async => http.Response('{}', 200));
 
-    AppLogger.info('Test', 'auto upload');
+    AppLogger.warn('Test', 'auto upload');
     await AppLogger.flush();
     await Future.delayed(const Duration(milliseconds: 300));
 

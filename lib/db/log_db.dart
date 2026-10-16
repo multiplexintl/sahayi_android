@@ -12,7 +12,7 @@ class LogDB {
 
   /// How long logs are kept on the device, and the hard cap on row count.
   static const Duration keepFor = Duration(days: 14);
-  static const int maxRows = 50000;
+  static const int maxRows = 10000;
 
   final Database _db;
   LogDB._(this._db);
@@ -214,6 +214,11 @@ class LogDB {
   /// Deletes logs from this device. [onlySent] keeps logs not yet uploaded.
   Future<int> clear({required bool onlySent}) =>
       _db.delete(table, where: onlySent ? 'Uploaded <> 0' : null);
+
+  /// INFO rows not yet on the server (cleanup after the switch to
+  /// "problems only" logging).
+  Future<int> deleteUnsentInfo() =>
+      _db.delete(table, where: "Level = 'INFO' AND Uploaded = 0");
 
   Future<int> count() async =>
       Sqflite.firstIntValue(await _db.rawQuery('SELECT COUNT(*) FROM $table')) ??

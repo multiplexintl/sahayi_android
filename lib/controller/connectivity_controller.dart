@@ -14,10 +14,37 @@ class ConnectivityController extends GetxController {
   final Connectivity _connectivity = Connectivity();
   StreamSubscription? _subscription;
 
+  /// When the connection was lost (null while online). Going offline is not
+  /// saved; one "Offline" row is saved when it comes back, with the duration.
+  DateTime? _offlineSince;
+  String _lastNetwork = '';
+
   @override
   void onInit() {
     super.onInit();
+    ever<bool>(isInternetConnected, _trackOffline);
     _init();
+  }
+
+  void _trackOffline(bool online) {
+    final now = DateTime.now();
+    if (!online) {
+      _offlineSince ??= now;
+    } else if (_offlineSince != null) {
+      AppLogger.warn('Offline', offlineMessage(_offlineSince!, now, _lastNetwork));
+      _offlineSince = null;
+    }
+  }
+
+  /// e.g. "Offline 12:31 → 12:44 (13 min), back on wifi"
+  static String offlineMessage(DateTime from, DateTime to, String network) {
+    String hm(DateTime t) =>
+        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    final d = to.difference(from);
+    final length = d.inMinutes >= 1 ? '${d.inMinutes} min' : '${d.inSeconds} s';
+    final day = from.day == to.day ? '' : ' (from ${from.day}/${from.month})';
+    return 'Offline ${hm(from)} → ${hm(to)}$day ($length)'
+        '${network.isEmpty ? '' : ', back on $network'}';
   }
 
   @override
@@ -29,7 +56,9 @@ class ConnectivityController extends GetxController {
   Future<void> _init() async {
     // Check current state immediately
     final initial = await _connectivity.checkConnectivity();
+    _lastNetwork = _names(initial);
     isInternetConnected.value = await _hasInternet();
+    if (!isInternetConnected.value) _offlineSince ??= DateTime.now();
     AppLogger.info('Network',
         'Start: ${_names(initial)}, internet check ${isInternetConnected.value ? 'OK' : 'FAILED'}');
 
@@ -37,6 +66,7 @@ class ConnectivityController extends GetxController {
     _subscription = _connectivity.onConnectivityChanged.listen((results) async {
       final hasNetwork = results.isNotEmpty &&
           results.any((r) => r != ConnectivityResult.none);
+      _lastNetwork = _names(results);
 
       if (hasNetwork) {
         isInternetConnected.value = await _hasInternet();
