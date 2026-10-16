@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:get/get.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:sahayi_android/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,16 +18,11 @@ class SplashController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
-    await getStoragePermission().then((granted) async {
-      if (granted) {
-        await _checkForUpdate();
-        await getCurrentUser();
-      } else {
-        log("Permission Denied");
-        AppLogger.warn('Permission', 'Storage permission denied');
-        Get.snackbar("Permission Required", "Storage permission is required.");
-      }
-    });
+    // No storage permission needed: the only file the app writes (the update
+    // download) goes to its own folder, which Android allows without one.
+    // Asking for "All files access" here blocked the app when refused.
+    await _checkForUpdate();
+    await getCurrentUser();
   }
 
   Future<void> _checkForUpdate() async {
@@ -48,19 +41,6 @@ class SplashController extends GetxController {
       log('Update check skipped: $e');
       AppLogger.warn('UpdateCheck', 'Update check failed: $e');
     }
-  }
-
-  Future<bool> getStoragePermission() async {
-    bool storagePermissionStatus;
-    final deviceInfo = await DeviceInfoPlugin().androidInfo;
-    if (deviceInfo.version.sdkInt >= 30) {
-      storagePermissionStatus =
-          await Permission.manageExternalStorage.request().isGranted;
-    } else {
-      storagePermissionStatus = await Permission.storage.request().isGranted;
-    }
-    log(storagePermissionStatus.toString());
-    return storagePermissionStatus;
   }
 
   Future<void> getCurrentUser() async {
