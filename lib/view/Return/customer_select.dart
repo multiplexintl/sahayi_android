@@ -19,6 +19,18 @@ import '../../ui/ui.dart';
 class CustomerSelectScreen extends StatelessWidget {
   const CustomerSelectScreen({super.key});
 
+  /// "Doc R1 · 5 items · 23 units · 16-10-2026" (counts from this scanner).
+  static String unfinishedDetails(DocMaster doc, (int, int)? counts) {
+    final (lines, units) = counts ?? (0, 0);
+    return [
+      'Doc ${doc.docNum ?? ''}',
+      lines == 0
+          ? 'nothing scanned yet'
+          : '$lines ${lines == 1 ? 'item' : 'items'} · $units ${units == 1 ? 'unit' : 'units'}',
+      if ((doc.docDate ?? '').isNotEmpty) doc.docDate!,
+    ].join(' · ');
+  }
+
   static final _dateFormat =
       DateFormat('dd-MM-yyyy'); // format the controller expects
 
@@ -190,8 +202,11 @@ class CustomerSelectScreen extends StatelessWidget {
                     message: 'No unfinished returns on this scanner.',
                   );
                 }
+                // newest first (scan time is stored as yyyy-MM-dd HH:mm…)
+                final docs = [...con.unFinishedDocs]..sort(
+                    (a, b) => (b.scanTime ?? '').compareTo(a.scanTime ?? ''));
                 return Column(children: [
-                  for (final doc in con.unFinishedDocs)
+                  for (final doc in docs)
                     Padding(
                       padding: const EdgeInsets.only(bottom: Space.sm),
                       child: AppCard(
@@ -209,7 +224,15 @@ class CustomerSelectScreen extends StatelessWidget {
                                       style: t.bodyMedium?.copyWith(
                                           fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 2),
-                                  Text('Doc ${doc.docNum ?? ''}',
+                                  Text(
+                                      unfinishedDetails(
+                                          doc,
+                                          con.unfinishedCounts[
+                                              ReturnController.countKey(
+                                                  doc.company,
+                                                  '${doc.custID ?? ''}${doc.docNum ?? ''}')]),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                       style: t.bodySmall),
                                 ]),
                           ),

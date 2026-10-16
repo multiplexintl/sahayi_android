@@ -255,4 +255,11 @@ void _tests() {
       expect(find.text('Total'), findsOneWidget);
     });
   });
+
+  test('unfinished return details: items, units and date', () {
+    final doc = DocMaster(docNum: 'R1', custID: '1308', docDate: '16-10-2026');
+    expect(CustomerSelectScreen.unfinishedDetails(doc, (5, 23)), 'Doc R1 · 5 items · 23 units · 16-10-2026');
+    expect(CustomerSelectScreen.unfinishedDetails(doc, (1, 1)), 'Doc R1 · 1 item · 1 unit · 16-10-2026');
+    expect(CustomerSelectScreen.unfinishedDetails(doc, null), 'Doc R1 · nothing scanned yet · 16-10-2026');
+  });
 }

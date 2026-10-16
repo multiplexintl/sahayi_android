@@ -527,6 +527,14 @@ class InvoiceOrTransferController extends GetxController {
     return changed;
   }
 
+  /// "3 → line 5, 2 → line 22": how much each line received.
+  static String splitText(
+          List<DocDetail> changed, Map<DocDetail, (int?, String?)> before) =>
+      changed
+          .map((l) =>
+              '${(l.checkQty ?? 0) - (before[l]?.$1 ?? 0)} → line ${l.slNo}')
+          .join(', ');
+
   // auto scroll
   void scrollToBarcode(String barcode) {
     // The first line of this barcode that is not full yet (or the first one
@@ -747,10 +755,11 @@ class InvoiceOrTransferController extends GetxController {
       log("Ready to finalize : ${isFinalize.value}");
       await refreshCurrent(); // hub's step 2 card shows the new progress
 
-      // Show success message and clear fields
+      // Show success message (which lines got how much, to tick off the
+      // paper invoice) and clear fields
       CustomWidget.customSnackBar(
         title: "Success",
-        message: "Quantity updated successfully!",
+        message: "Quantity updated: ${splitText(changed, before)}",
       );
       clearInputFields();
       // Clear focus and request focus again with a delay

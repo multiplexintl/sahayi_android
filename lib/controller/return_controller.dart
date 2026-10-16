@@ -33,6 +33,13 @@ class ReturnController extends GetxController {
   var expiryDateController = TextEditingController();
   var custSuggestions = <Customer>[].obs;
   var unFinishedDocs = <DocMaster>[].obs;
+
+  /// Lines and units scanned per unfinished return, key "Company|DocNum"
+  /// (DocNum as stored: customer ID + number).
+  final unfinishedCounts = <String, (int, int)>{}.obs;
+
+  static String countKey(String? company, String? fullDocNum) =>
+      '$company|$fullDocNum';
   var selectedCustomer = Customer().obs;
   var docNumber = Rxn<String>();
   var selectedPart = Rxn<Part>();
@@ -1579,6 +1586,17 @@ class ReturnController extends GetxController {
       whereArgs: ['N', 'R'],
     );
     unFinishedDocs.value = items.map((it) => DocMaster.fromJson(it)).toList();
+    final counts = await DBHelper.getItemsByRawQuery(
+        "SELECT ${DBHelper.companyDocDetail} AS C, ${DBHelper.docNumDocDetail} AS D, "
+        "COUNT(*) AS N, SUM(${DBHelper.checkQtyDocDetail}) AS Q FROM ${DBHelper.docDetail} "
+        "WHERE ${DBHelper.docTypeDocDetail} = 'R' GROUP BY ${DBHelper.companyDocDetail}, ${DBHelper.docNumDocDetail}");
+    unfinishedCounts.value = {
+      for (final r in counts)
+        countKey(r['C'] as String?, r['D'] as String?): (
+          (r['N'] as int?) ?? 0,
+          (r['Q'] as int?) ?? 0
+        )
+    };
     update();
     log(unFinishedDocs.toString());
   }

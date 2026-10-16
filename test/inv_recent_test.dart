@@ -302,6 +302,14 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
+    test('split message names how much went to each line', () {
+      DocDetail d(int sl, int ship, int check) => DocDetail(slNo: sl, shipQty: ship, checkQty: check);
+      final lines = [d(5, 3, 1), d(22, 9, 0), d(40, 3, 0)];
+      final before = {for (final l in lines) l: (l.checkQty, l.stat)};
+      final changed = InvoiceOrTransferController.fillInOrder(lines, 6);
+      expect(InvoiceOrTransferController.splitText(changed, before), '2 → line 5, 4 → line 22');
+    });
+
     test('fillInOrder / openQty', () {
       DocDetail d(int sl, int ship, int check) => DocDetail(slNo: sl, shipQty: ship, checkQty: check);
       final lines = [d(5, 3, 3), d(22, 9, 1), d(40, 3, 0)];

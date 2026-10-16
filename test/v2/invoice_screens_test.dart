@@ -87,8 +87,8 @@ void _tests() {
       await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      expect(find.text('2 of 6 items done'), findsOneWidget);
-      expect(find.text('Finalize · 4 left'), findsOneWidget);
+      expect(find.text('2 of 6 lines done'), findsOneWidget);
+      expect(find.text('Finalize · 4 lines left'), findsOneWidget);
       expect(find.text('20/03/2025', findRichText: true), findsNothing); // part of subtitle
       expect(find.textContaining('Kesariya'), findsOneWidget);
     });
@@ -107,7 +107,7 @@ void _tests() {
     await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('0 of 4 items done'), findsOneWidget);
+    expect(find.text('0 of 4 lines done'), findsOneWidget);
     for (final n in ['5', '6', '22']) {
       expect(find.text(n), findsOneWidget, reason: 'line $n shown as on the paper invoice');
     }
@@ -118,6 +118,34 @@ void _tests() {
     await tester.pumpAndSettle();
     expect(find.text('140'), findsOneWidget, reason: '3-digit line number fits');
     expect(find.text('3 of 3 · GLB0073594 · 111'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Scan: units left; "Open lines only"; "Go to line" (font x1.3)', (tester) async {
+    eda52(tester, 1.3);
+    await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
+    await tester.pumpAndSettle();
+    // ship 1800+600+120+96+50+10, checked 1800+600+0+40+0+0 → 236 left
+    expect(find.text('236 units left'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('List options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open lines only'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open lines only · 4'), findsOneWidget);
+    expect(find.textContaining('6858475000000'), findsNothing, reason: 'line 0 is complete, hidden');
+    expect(find.textContaining('6858475000002'), findsOneWidget);
+
+    // go to a hidden (complete) line: list shows all lines again
+    await tester.tap(find.byTooltip('List options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Go to line…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '1');
+    await tester.tap(find.text('Go'));
+    await tester.pumpAndSettle();
+    expect(find.text('Checked / Shipped'), findsOneWidget);
+    expect(find.textContaining('6858475000001'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

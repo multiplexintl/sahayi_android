@@ -28,6 +28,13 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
   Worker? _scrollWorker;
   double _itemExtent = 76;
 
+  /// List shows only lines that still need units (long invoices).
+  bool _openOnly = false;
+
+  List<DocDetail> _shown(List<DocDetail> items) => _openOnly
+      ? items.where((i) => (i.checkQty ?? 0) < (i.shipQty ?? 0)).toList()
+      : items;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +53,52 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
     super.dispose();
   }
 
+  /// Asks for an invoice line number and scrolls the list to it (shows all
+  /// lines again if that line is hidden by "Open lines only").
+  Future<void> _goToLine(List<DocDetail> items) async {
+    final ctrl = TextEditingController();
+    final number = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Go to line'),
+        content: AppTextField(
+          controller: ctrl,
+          hint: 'Line number, e.g. 81',
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          textInputAction: TextInputAction.go,
+          onSubmitted: (v) => Navigator.of(context).pop(int.tryParse(v)),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(int.tryParse(ctrl.text)),
+              child: const Text('Go')),
+        ],
+      ),
+    );
+    // freed after the dialog has fully closed (see DeleteAllDialog)
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
+    if (number == null || !mounted) return;
+    final line = items.firstWhereOrNull((i) => i.slNo == number);
+    if (line == null) {
+      final last =
+          items.map((i) => i.slNo ?? 0).fold<int>(0, (a, b) => a > b ? a : b);
+      AppToast.warning(
+          'Line $number not found', 'The last line of this document is $last.');
+      return;
+    }
+    if (_openOnly && !_shown(items).contains(line)) {
+      setState(() => _openOnly = false);
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    _scrollTo(line);
+  }
+
   /// "2 of 8 · " when this item is on several lines of the invoice (filled
   /// in order), otherwise empty.
   static String repeatLabel(List<DocDetail> items, DocDetail item) {
@@ -57,9 +110,9 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
 
   /// Scrolls to that exact line (the same item can be on several lines).
   void _scrollTo(DocDetail line) {
-    final items = con.docMaster.value.docDetails ?? const <DocDetail>[];
-    final index = items.indexWhere(
-        (i) => i.slNo == line.slNo && i.barcode == line.barcode);
+    final items = _shown(con.docMaster.value.docDetails ?? const <DocDetail>[]);
+    final index = items
+        .indexWhere((i) => i.slNo == line.slNo && i.barcode == line.barcode);
     final sc = con.scrollController;
     if (index < 0 || !sc.hasClients) return;
     final target =
@@ -96,6 +149,11 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
           final items = doc.docDetails ?? const <DocDetail>[];
           final done = items.where((i) => i.checkQty == i.shipQty).length;
           final left = items.length - done;
+          final unitsLeft = items.fold<int>(
+              0,
+              (s, i) =>
+                  s + ((i.shipQty ?? 0) - (i.checkQty ?? 0)).clamp(0, 1 << 30));
+          final shown = _shown(items);
           final busy = con.scanIsLoading.value;
           final selected = con.scannedItem.value;
           final dateText = _formatDocDate(doc.docDate);
@@ -107,7 +165,15 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
               subtitle: [doc.custName, dateText]
                   .where((s) => s != null && s.isNotEmpty)
                   .join(' · '),
-              actions: [if (kDebugMode) _DeveloperMenu(con: con)],
+              actions: [
+                if (doc.docNum != null)
+                  _ListMenu(
+                    openOnly: _openOnly,
+                    onOpenOnly: (v) => setState(() => _openOnly = v),
+                    onGoToLine: () => _goToLine(items),
+                  ),
+                if (kDebugMode) _DeveloperMenu(con: con),
+              ],
             ),
             body: doc.docNum == null
                 ? EmptyState(
@@ -119,7 +185,12 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                           Space.screen, Space.xs, Space.screen, Space.sm),
-                      child: ProgressCard(done: done, total: items.length),
+                      child: ProgressCard(
+                          done: done,
+                          total: items.length,
+                          unit: 'lines',
+                          detail:
+                              unitsLeft > 0 ? '$unitsLeft units left' : null),
                     ),
                     Padding(
                       padding:
@@ -232,8 +303,10 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
                         ),
                       ]),
                     ),
-                    const SectionLabel('Items',
-                        trailing: Text('Checked / Shipped')),
+                    SectionLabel('Items',
+                        trailing: Text(_openOnly
+                            ? 'Open lines only · ${shown.length}'
+                            : 'Checked / Shipped')),
                     Expanded(
                       child:
                           GetBuilder<InvoiceOrTransferController>(builder: (_) {
@@ -242,9 +315,9 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
                           itemExtent: _itemExtent,
                           padding: const EdgeInsets.fromLTRB(
                               Space.screen, 0, Space.screen, 120),
-                          itemCount: items.length,
+                          itemCount: shown.length,
                           itemBuilder: (context, index) {
-                            final item = items[index];
+                            final item = shown[index];
                             final ship = item.shipQty ?? 0;
                             final check = item.checkQty ?? 0;
                             // the exact line being filled, not every line of that item
@@ -302,8 +375,9 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
                           child: Obx(() => AppButton(
                                 label: 'Finalize',
                                 icon: Icons.task_alt_rounded,
-                                disabledLabel:
-                                    left > 0 ? 'Finalize · $left left' : null,
+                                disabledLabel: left > 0
+                                    ? 'Finalize · $left ${left == 1 ? 'line' : 'lines'} left'
+                                    : null,
                                 loading: busy && con.isFinalize.value,
                                 onPressed: busy || !con.isFinalize.value
                                     ? null
@@ -321,6 +395,33 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
 }
 
 /// Debug builds only: the developer shortcuts that used to be hidden gestures.
+/// ⋮ menu: show only open lines, jump to an invoice line number.
+class _ListMenu extends StatelessWidget {
+  final bool openOnly;
+  final ValueChanged<bool> onOpenOnly;
+  final VoidCallback onGoToLine;
+  const _ListMenu(
+      {required this.openOnly,
+      required this.onOpenOnly,
+      required this.onGoToLine});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'List options',
+      icon: const Icon(Icons.more_vert_rounded),
+      onSelected: (v) => v == 'open' ? onOpenOnly(!openOnly) : onGoToLine(),
+      itemBuilder: (_) => [
+        CheckedPopupMenuItem(
+            value: 'open',
+            checked: openOnly,
+            child: const Text('Open lines only')),
+        const PopupMenuItem(value: 'goto', child: Text('Go to line…')),
+      ],
+    );
+  }
+}
+
 class _DeveloperMenu extends StatelessWidget {
   final InvoiceOrTransferController con;
   const _DeveloperMenu({required this.con});

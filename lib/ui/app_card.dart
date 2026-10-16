@@ -71,7 +71,7 @@ class SectionLabel extends StatelessWidget {
       padding: padding,
       child: Row(children: [
         Expanded(child: Text(text.toUpperCase(), style: style)),
-        if (trailing != null) trailing!,
+        if (trailing != null) Flexible(child: trailing!),
       ]),
     );
   }

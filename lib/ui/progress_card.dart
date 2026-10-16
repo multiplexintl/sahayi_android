@@ -10,7 +10,15 @@ class ProgressCard extends StatelessWidget {
   final int total;
   final String unit;
 
-  const ProgressCard({super.key, required this.done, required this.total, this.unit = 'items'});
+  /// Shown on the right instead of the percentage (e.g. "37 units left").
+  final String? detail;
+
+  const ProgressCard(
+      {super.key,
+      required this.done,
+      required this.total,
+      this.unit = 'items',
+      this.detail});
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +34,17 @@ class ProgressCard extends StatelessWidget {
           Expanded(
             child: Text(
               complete ? 'All $total $unit done' : '$done of $total $unit done',
-              style: t.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+              // one line: the card must not grow on large fonts
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.titleSmall?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()]),
             ),
           ),
-          Text('${(ratio * 100).round()}%',
-              style: t.bodySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+          const SizedBox(width: Space.sm),
+          Text(detail ?? '${(ratio * 100).round()}%',
+              style: t.bodySmall?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()])),
         ]),
         const SizedBox(height: Space.sm),
         AppProgressBar(value: ratio, color: complete ? c.success : c.primary),
@@ -44,7 +58,8 @@ class AppProgressBar extends StatelessWidget {
   final Color? color;
   final double height;
 
-  const AppProgressBar({super.key, required this.value, this.color, this.height = 8});
+  const AppProgressBar(
+      {super.key, required this.value, this.color, this.height = 8});
 
   @override
   Widget build(BuildContext context) {
