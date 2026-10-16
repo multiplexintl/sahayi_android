@@ -90,7 +90,13 @@ class LogUploader {
         final client = await _client();
         final response = await client.post(
           endpoint,
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            // Tells the server this app already saves only problems, so any
+            // INFO sent comes from "Full logging" and must be kept. Old apps
+            // do not send it; the server ignores their INFO rows.
+            'X-Log-Filter': 'problems-only',
+          },
           body: jsonEncode(batch.map((e) => e.toApiJson()).toList()),
         );
 

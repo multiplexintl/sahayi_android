@@ -64,6 +64,8 @@ void main() {
 
     expect(await LogUploader.uploadNow(), 3);
     expect(requests.single.url.toString(), '${api}v2/Logs');
+    // server keeps INFO only from apps that say they filter themselves
+    expect(requests.single.headers['X-Log-Filter'], 'problems-only');
     final body = jsonDecode(requests.single.body) as List;
     expect(body.length, 3);
     expect(body.first['Source'], 'APP');
