@@ -205,35 +205,7 @@ class _SummaryBar extends StatelessWidget {
       true;
 
   /// "Everything" needs the words DELETE ALL typed exactly.
-  Future<bool> _typedConfirm() async {
-    final typed = TextEditingController();
-    final ok = await Get.dialog<bool>(StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        scrollable: true,
-        title: const Text('Delete ALL logs on the server?'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Every log from every device is deleted. This cannot be undone.\n\n'
-              'Type DELETE ALL to confirm.'),
-          TextField(
-            controller: typed,
-            autofocus: true,
-            textCapitalization: TextCapitalization.characters,
-            onChanged: (_) => setState(() {}),
-          ),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: context.c.dangerSoft, foregroundColor: context.c.dangerText),
-            onPressed: typed.text.trim() == 'DELETE ALL' ? () => Get.back(result: true) : null,
-            child: const Text('Delete everything'),
-          ),
-        ],
-      ),
-    ));
-    typed.dispose();
-    return ok == true;
-  }
+  Future<bool> _typedConfirm() async => await Get.dialog<bool>(const DeleteAllDialog()) == true;
 
   @override
   Widget build(BuildContext context) {
@@ -412,6 +384,54 @@ class _ServerLogTile extends StatelessWidget {
         'App version': log.appVersion,
         'Details': log.details,
       }),
+    );
+  }
+}
+
+/// Confirm box for deleting every server log: the words DELETE ALL must be
+/// typed. Its own widget so the text field is freed only after the box has
+/// fully closed (freeing it right after Get.dialog returned crashed the
+/// closing animation: "TextEditingController was used after being disposed").
+class DeleteAllDialog extends StatefulWidget {
+  const DeleteAllDialog({super.key});
+
+  @override
+  State<DeleteAllDialog> createState() => _DeleteAllDialogState();
+}
+
+class _DeleteAllDialogState extends State<DeleteAllDialog> {
+  final _typed = TextEditingController();
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('Delete ALL logs on the server?'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('Every log from every device is deleted. This cannot be undone.\n\n'
+            'Type DELETE ALL to confirm.'),
+        TextField(
+          controller: _typed,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          onChanged: (_) => setState(() {}),
+        ),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: context.c.dangerSoft, foregroundColor: context.c.dangerText),
+          onPressed: _typed.text.trim() == 'DELETE ALL' ? () => Get.back(result: true) : null,
+          child: const Text('Delete everything'),
+        ),
+      ],
     );
   }
 }
