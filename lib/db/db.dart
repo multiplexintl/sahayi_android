@@ -427,6 +427,33 @@ class DBHelper {
     return result;
   }
 
+  /// Saves document lines, each found by its exact key (Company, DocNum,
+  /// DocType, SlNo), in one transaction. Returns how many rows were updated.
+  /// (Updating by barcode changed every line of that barcode and, through
+  /// REPLACE on the line number, deleted the others.)
+  static Future<int> updateDocDetailLines(
+      List<Map<String, dynamic>> lines) async {
+    final database = await db;
+    return database.transaction((txn) async {
+      var count = 0;
+      for (final l in lines) {
+        count += await txn.update(
+          docDetail,
+          l,
+          where:
+              "$companyDocDetail = ? and $docNumDocDetail = ? and $docTypeDocDetail = ? and $slNoDocDetail = ?",
+          whereArgs: [
+            l[companyDocDetail],
+            l[docNumDocDetail],
+            l[docTypeDocDetail],
+            l[slNoDocDetail]
+          ],
+        );
+      }
+      return count;
+    });
+  }
+
   // insert new item to table
   static Future<int> insertItem({
     required String tableName,

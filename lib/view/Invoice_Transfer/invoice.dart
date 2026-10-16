@@ -36,7 +36,10 @@ class InvoiveTransferSceen extends StatelessWidget {
             Obx(() => _StepCard(
                   number: '2',
                   title: 'Scan items',
-                  subtitle: 'Check every item of the downloaded $noun',
+                  // what is on this scanner and how far it is
+                  subtitle: con.currentDocNum.value == null
+                      ? 'Check every item of the downloaded $noun'
+                      : '${con.currentDocNum.value} · ${con.currentChecked.value} of ${con.currentTotal.value} units checked',
                   icon: Icons.qr_code_scanner_rounded,
                   loading: con.scanIsLoading.value,
                   onTap: con.scanIsLoading.value
@@ -69,6 +72,14 @@ class InvoiveTransferSceen extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: Space.sm),
                     child: _RecentCard(
                       doc: doc,
+                      // "EPIC01 · Rashid K." (older entries have neither)
+                      meta: [
+                        doc.company,
+                        con.pickerList
+                                .firstWhereOrNull((p) => p.id == doc.pickedBy)
+                                ?.name ??
+                            doc.pickedBy,
+                      ].where((v) => v != null && v.isNotEmpty).join(' · '),
                       isInvoice: isInvoice,
                       // the one downloaded on this scanner right now (step 2)
                       current: doc.stat != 'Y' &&
@@ -89,11 +100,13 @@ class InvoiveTransferSceen extends StatelessWidget {
 /// (highlighted, tap continues), or unfinished elsewhere (tap syncs again).
 class _RecentCard extends StatelessWidget {
   final DocMaster doc;
+  final String meta;
   final bool isInvoice;
   final bool current;
   final VoidCallback? onTap;
   const _RecentCard(
       {required this.doc,
+      this.meta = '',
       required this.isInvoice,
       required this.current,
       this.onTap});
@@ -126,6 +139,12 @@ class _RecentCard extends StatelessWidget {
             Text('${doc.docNum}',
                 style: t.titleSmall?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()])),
+            if (meta.isNotEmpty)
+              Text(meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.bodySmall
+                      ?.copyWith(color: current ? c.onPrimarySoft : null)),
             if (!done)
               Text(current ? 'Tap to continue scanning' : 'Tap to sync again',
                   maxLines: 1,

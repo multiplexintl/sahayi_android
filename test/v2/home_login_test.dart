@@ -175,6 +175,17 @@ void _tests() {
     late TestLogin login;
     setUp(() => login = Get.put<LoginController>(TestLogin()) as TestLogin);
 
+    testWidgets('remembers the last Employee ID; cursor goes to the password', (tester) async {
+      Get.delete<LoginController>(force: true);
+      SharedPreferences.setMockInitialValues({LoginController.lastEmpIdKey: 'MX1576'});
+      final c = Get.put<LoginController>(TestLogin());
+      eda52(tester, 1.0);
+      await tester.pumpWidget(testApp(home: LoginScreen()));
+      await tester.pumpAndSettle();
+      expect(c.idController.text, 'MX1576');
+      expect(c.pwdFocusNode.hasFocus, isTrue);
+    });
+
     for (final keyboard in [0.0, 300.0]) {
       for (final font in [1.0, 1.3]) {
         testWidgets('fits 360x640 (keyboard ${keyboard.toInt()}, font x$font)', (tester) async {

@@ -94,6 +94,33 @@ void _tests() {
     });
   }
 
+  testWidgets('Scan: invoice line numbers shown; repeated item says "2 of 3" (font x1.3)', (tester) async {
+    eda52(tester, 1.3);
+    DocDetail line(int sl, String part, String barcode, int ship) => DocDetail(
+        slNo: sl, partNum: part, partName: 'Glass bottle 500 ML', barcode: barcode, shipQty: ship, checkQty: 0);
+    con.docMaster.value = DocMaster(docNum: '23014637', docType: 'I', docDetails: [
+      line(5, 'GLB0073594', '111', 3),
+      line(6, 'OTHER', '222', 1),
+      line(22, 'GLB0073594', '111', 9),
+      line(140, 'GLB0073594', '111', 12),
+    ]);
+    await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('0 of 4 items done'), findsOneWidget);
+    for (final n in ['5', '6', '22']) {
+      expect(find.text(n), findsOneWidget, reason: 'line $n shown as on the paper invoice');
+    }
+    expect(find.text('1 of 3 · GLB0073594 · 111'), findsOneWidget);
+    expect(find.text('2 of 3 · GLB0073594 · 111'), findsOneWidget);
+    expect(find.text('OTHER · 222'), findsOneWidget);
+    await tester.drag(find.byType(ListView).last, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(find.text('140'), findsOneWidget, reason: '3-digit line number fits');
+    expect(find.text('3 of 3 · GLB0073594 · 111'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Scan: Save validates like before (empty barcode is refused)', (tester) async {
     eda52(tester, 1.0);
     await tester.pumpWidget(testApp(home: ScanInvoiceScreen()));
@@ -158,18 +185,22 @@ void _tests() {
   testWidgets('Hub: the document on this scanner is marked; others say "sync again"', (tester) async {
     eda52(tester, 1.3);
     con.lastInvoices.assignAll([
-      DocMaster(docNum: '25032179', stat: 'N'),
+      DocMaster(docNum: '25032179', stat: 'N', company: 'EPIC01', pickedBy: 'EX0085'),
       DocMaster(docNum: '25032700', stat: 'Y'),
       DocMaster(docNum: '25032800', stat: 'N'), // the one on the scanner, oldest
     ]);
     con.currentDocNum.value = '25032800';
+    con.currentChecked.value = 120;
+    con.currentTotal.value = 600;
     await tester.pumpWidget(testApp(home: InvoiveTransferSceen()));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('On scanner'), findsOneWidget);
+    expect(find.text('25032800 · 120 of 600 units checked'), findsOneWidget, reason: 'step 2 card');
     expect(find.text('Tap to continue scanning'), findsOneWidget);
     expect(find.text('Not completed'), findsOneWidget);
     expect(find.text('Tap to sync again'), findsOneWidget);
+    expect(find.text('EPIC01 · Rashid K.'), findsOneWidget, reason: 'company and picker name');
     expect(find.text('Completed'), findsOneWidget);
     final current = find.ancestor(of: find.text('On scanner'), matching: find.byType(AppCard)).first;
     expect(find.descendant(of: current, matching: find.text('25032800')), findsOneWidget);

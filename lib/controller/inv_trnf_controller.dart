@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:math' show max, min;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
@@ -40,6 +41,10 @@ class InvoiceOrTransferController extends GetxController {
   /// Number of the invoice/transfer downloaded on this scanner (step 2), or
   /// null. Lets "Recent" mark the one being scanned now.
   final currentDocNum = RxnString();
+
+  /// Units checked / shipped of [currentDocNum] (for the hub's step 2 card).
+  final currentChecked = 0.obs;
+  final currentTotal = 0.obs;
   var isInvoice = true.obs;
   Rxn<Company> selectedCompany = Rxn<Company>();
   List<Company> companyList = [];
@@ -149,15 +154,35 @@ class InvoiceOrTransferController extends GetxController {
     log("Last Invoice Table: $lastInvoicesCheck");
     var list =
         lastInvoicesCheck.map((json) => DocMaster.fromJson(json)).toList();
+    await refreshCurrent(docType: docType);
+    lastInvoices.value = list.reversed.toList();
+    update();
+  }
+
+  /// Reads which document is downloaded on this scanner and how far it is.
+  Future<void> refreshCurrent({String? docType}) async {
+    final type = docType ?? (isInvoice.value ? 'I' : 'T');
     final onDevice = await DBHelper.getItems(
         tableName: DBHelper.docMaster,
         columnName: DBHelper.docTypeDocMaster,
-        condition: docType ?? (isInvoice.value ? 'I' : 'T'));
+        condition: type);
     currentDocNum.value = onDevice.isEmpty
         ? null
         : onDevice.first[DBHelper.docNumDocMaster] as String?;
-    lastInvoices.value = list.reversed.toList();
-    update();
+    if (currentDocNum.value == null) {
+      currentChecked.value = currentTotal.value = 0;
+      return;
+    }
+    final sums = await DBHelper.getItemsByQuery(
+      tableName: DBHelper.docDetail,
+      where:
+          "${DBHelper.docTypeDocDetail} = ? and ${DBHelper.docNumDocDetail} = ?",
+      whereArgs: [type, currentDocNum.value],
+    );
+    currentChecked.value = sums.fold<int>(
+        0, (s, r) => s + ((r[DBHelper.checkQtyDocDetail] as int?) ?? 0));
+    currentTotal.value = sums.fold<int>(
+        0, (s, r) => s + ((r[DBHelper.shipQtyDocDetail] as int?) ?? 0));
   }
 
   /// Tap on a document in "Recent". Completed: nothing. Unfinished and still
@@ -411,13 +436,16 @@ class InvoiceOrTransferController extends GetxController {
           CustomWidget.customDialogue(
             title: "Success!!",
             subTitle:
-                "$itemCount $itemLabel of Invoice Num ${tempInvList.docNum} fetched successfully.",
+                "$itemCount $itemLabel of ${isInvoice.value ? 'invoice' : 'transfer'} ${tempInvList.docNum} downloaded. Start scanning now.",
+            okText: "Start scanning",
             onPressed: () {
               invController.clear();
               selectedCompany.value = null;
               selectedPicker.value = null;
               pickerController.clear();
               Get.close(2);
+              // straight on to step 2 (saves a tap on the hub)
+              getItemsThenToScanPage();
             },
           );
         },
@@ -468,19 +496,58 @@ class InvoiceOrTransferController extends GetxController {
     }
   }
 
+  /// All lines of the open document with this barcode, in invoice order.
+  /// The same part can be on several lines (e.g. invoice 23014637: one part
+  /// on 8 lines); they are filled one after the other.
+  List<DocDetail> linesForBarcode(String? barcode) => [
+        for (final l in docMaster.value.docDetails ?? const <DocDetail>[])
+          if (barcode != null && l.barcode == barcode) l
+      ];
+
+  /// How much can still be checked for this barcode, over all its lines.
+  static int openQty(List<DocDetail> lines) => lines.fold(
+      0, (sum, l) => sum + max(0, (l.shipQty ?? 0) - (l.checkQty ?? 0)));
+
+  /// Spreads [qty] over [lines] in order, filling each up to its shipped
+  /// quantity. Returns the lines that received something. Caller checks
+  /// that qty <= openQty(lines).
+  static List<DocDetail> fillInOrder(List<DocDetail> lines, int qty) {
+    final changed = <DocDetail>[];
+    var left = qty;
+    for (final l in lines) {
+      if (left == 0) break;
+      final open = (l.shipQty ?? 0) - (l.checkQty ?? 0);
+      if (open <= 0) continue;
+      final take = min(open, left);
+      l.checkQty = (l.checkQty ?? 0) + take;
+      l.stat = 'Y';
+      left -= take;
+      changed.add(l);
+    }
+    return changed;
+  }
+
   // auto scroll
   void scrollToBarcode(String barcode) {
-    final index = docMaster.value.docDetails
-        ?.indexWhere((item) => item.barcode == barcode);
+    // The first line of this barcode that is not full yet (or the first one
+    // when all are full), so the list shows where the next units go.
+    final lines = linesForBarcode(barcode);
+    final target =
+        lines.firstWhereOrNull((l) => (l.checkQty ?? 0) < (l.shipQty ?? 0)) ??
+            lines.firstOrNull;
+    final index =
+        target == null ? -1 : docMaster.value.docDetails!.indexOf(target);
 
-    if (index != null && index != -1) {
+    if (index != -1) {
       // Assign the matched item to the reactive variable
       scannedItem.value = docMaster.value.docDetails![index];
-      scrollController.animateTo(
-        index * 63, // Adjust item height if necessary
-        duration: Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          index * 63, // Adjust item height if necessary
+          duration: Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
       qtyFocusNode.requestFocus();
     } else {}
   }
@@ -589,15 +656,23 @@ class InvoiceOrTransferController extends GetxController {
         return false;
       }
 
-      final shipQty = scannedItem.value.shipQty ?? 0;
-      final currentCheckQty = scannedItem.value.checkQty ?? 0;
+      // All lines of this barcode count together (same part on several lines).
+      final lines = linesForBarcode(scannedItem.value.barcode);
+      if (lines.isEmpty) {
+        soundAndVibrate();
+        _showErrorSnackbar("Item not found in the invoice list.");
+        return false;
+      }
+      final shipQty = lines.fold<int>(0, (s, l) => s + (l.shipQty ?? 0));
+      final open = openQty(lines);
+      final linesText = lines.length > 1 ? " over ${lines.length} lines" : "";
 
-      // New Check: If shipQty and checkQty are already equal, prevent further scanning
-      if (currentCheckQty >= shipQty) {
+      // Every line of this item is already full: no more can be scanned
+      if (open <= 0) {
         CustomWidget.customDialogue(
           title: "Already Completed",
           subTitle:
-              "The scanned item has already reached the shipping quantity ($shipQty).",
+              "The scanned item has already reached the shipping quantity ($shipQty$linesText).",
           onPressed: () {
             clearInputFields();
             // Clear focus and request focus again with a delay
@@ -619,14 +694,13 @@ class InvoiceOrTransferController extends GetxController {
         return false;
       }
 
-      final totalCheckQty = currentCheckQty + qty;
-
       // If total check quantity exceeds ship quantity, show a warning dialog
-      if (totalCheckQty > shipQty) {
+      if (qty > open) {
+        final totalCheckQty = shipQty - open + qty;
         CustomWidget.customDialogue(
           title: "Quantity Exceeded",
           subTitle:
-              "The total checked quantity ($totalCheckQty) exceeds the shipped quantity ($shipQty).",
+              "The total checked quantity ($totalCheckQty) exceeds the shipped quantity ($shipQty$linesText).",
           onPressed: () => Get.back(),
           okText: "OK",
           buttonColor: Colors.red,
@@ -634,48 +708,27 @@ class InvoiceOrTransferController extends GetxController {
         return false;
       }
 
-      // Update the scanned item with the new quantity added
-      scannedItem.update((item) {
-        item?.checkQty = totalCheckQty;
-        item?.stat = 'Y';
-      });
+      // Fill the lines in order and save exactly those lines (by line number,
+      // so other lines of the same item are never touched or removed).
+      final before = {for (final l in lines) l: (l.checkQty, l.stat)};
+      final changed = fillInOrder(lines, qty);
+      final updated = await DBHelper.updateDocDetailLines(
+          changed.map((l) => l.toDB()).toList());
 
-      // Prepare data for the database update
-      final updatedData = scannedItem.value.toDB();
-      log(updatedData.toString());
-
-      // Update the database
-      final result = await DBHelper.updateItemWith2Conditions(
-        DBHelper.docDetail,
-        updatedData,
-        DBHelper.barcodeDocDetail,
-        DBHelper.docNumDocDetail,
-        scannedItem.value.barcode!,
-        docMaster.value.docNum!.toString(),
-      );
-
-      if (result == 0) {
-        AppLogger.error('LocalDbError', 'Quantity update matched 0 rows',
+      if (updated != changed.length) {
+        // put the screen back as it was
+        for (final e in before.entries) {
+          e.key.checkQty = e.value.$1;
+          e.key.stat = e.value.$2;
+        }
+        AppLogger.error('LocalDbError',
+            'Quantity update matched $updated of ${changed.length} lines',
             docNum: docMaster.value.docNum,
             details: 'Barcode ${scannedItem.value.barcode}');
         _showErrorSnackbar("Failed to update the database.");
         return false;
       }
-
-      // Update the invoice list if successful
-      final index = docMaster.value.docDetails
-          ?.indexWhere((item) => item.barcode == scannedItem.value.barcode);
-
-      if (index != null && index != -1) {
-        docMaster.update((inv) {
-          inv?.docDetails?[index].checkQty = totalCheckQty;
-          inv?.docDetails?[index].stat = 'Y';
-        });
-      } else {
-        soundAndVibrate();
-        _showErrorSnackbar("Item not found in the invoice list.");
-        return false;
-      }
+      docMaster.refresh();
 
       // Check if all items' checkQty and shipQty are equal in the database
       final allItemsMap = await DBHelper.getItems(
@@ -692,6 +745,7 @@ class InvoiceOrTransferController extends GetxController {
           allItems.every((item) => item.checkQty == item.shipQty);
 
       log("Ready to finalize : ${isFinalize.value}");
+      await refreshCurrent(); // hub's step 2 card shows the new progress
 
       // Show success message and clear fields
       CustomWidget.customSnackBar(
@@ -1086,6 +1140,7 @@ class InvoiceOrTransferController extends GetxController {
             docMaster.value = DocMaster(); // Clear local data
             lastInvoices.clear();
             currentDocNum.value = null;
+            currentChecked.value = currentTotal.value = 0;
             CustomWidget.customSnackBar(
                 title: "Success!!", message: "Invoice deleted successfully.");
           } else {

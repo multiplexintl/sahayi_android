@@ -68,8 +68,13 @@ class ItemCard extends StatelessWidget {
           child: Row(children: [
             if (leading != null) ...[
               SizedBox(
-                width: 26,
-                child: Text(leading!, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+                width: 30,
+                // line numbers up to 3 digits (invoices have 150+ lines)
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(leading!, maxLines: 1, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+                ),
               ),
             ],
             Expanded(

@@ -17,6 +17,10 @@ class LoginController extends GetxController {
   TextEditingController pwdController = TextEditingController();
   static const String _userKey = 'user'; // Key for storing user data
   static const String _sessionKey = 'sessionTime'; // Key for session time
+  static const String lastEmpIdKey = 'lastEmpId'; // last successful login
+
+  /// Password field: gets the cursor when the Employee ID is remembered.
+  final pwdFocusNode = FocusNode();
 
   var isPasswordVisible = false.obs;
 
@@ -29,12 +33,29 @@ class LoginController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
+    await _fillLastEmployeeId();
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     version.value = packageInfo.version;
     buildNumber.value = packageInfo.buildNumber;
   }
 
   void login() async {}
+
+  /// Fills in the Employee ID of the last successful login on this scanner
+  /// (kept after logout), so only the password has to be typed.
+  Future<void> _fillLastEmployeeId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final last = prefs.getString(lastEmpIdKey);
+      if (last != null && last.isNotEmpty && idController.text.isEmpty) {
+        idController.text = last;
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => pwdFocusNode.requestFocus());
+      }
+    } catch (e) {
+      log("Could not read last Employee ID: $e");
+    }
+  }
 
   // get employee
   void getEmployee() async {
@@ -73,6 +94,7 @@ class LoginController extends GetxController {
 
     // Save session timestamp
     await prefs.setInt(_sessionKey, DateTime.now().millisecondsSinceEpoch);
+    if (user.empID != null) await prefs.setString(lastEmpIdKey, user.empID!);
     currentUser = user;
     log("User and session stored successfully.");
   }

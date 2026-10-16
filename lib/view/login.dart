@@ -54,6 +54,7 @@ class LoginScreen extends StatelessWidget {
                         Obx(() => AppTextField(
                               label: 'Password',
                               controller: con.pwdController,
+                              focusNode: con.pwdFocusNode,
                               prefixIcon: Icons.lock_outline_rounded,
                               // Hidden by default; the eye shows it. (Version 1 used this
                               // flag the other way round and showed the password.)

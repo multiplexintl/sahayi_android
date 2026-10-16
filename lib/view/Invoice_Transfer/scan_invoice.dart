@@ -36,7 +36,7 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
     // runs after the controller's own animateTo and replaces it).
     _scrollWorker = ever(con.scannedItem, (DocDetail item) {
       if (item.barcode == null) return;
-      scheduleMicrotask(() => _scrollTo(item.barcode!));
+      scheduleMicrotask(() => _scrollTo(item));
     });
   }
 
@@ -46,9 +46,20 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
     super.dispose();
   }
 
-  void _scrollTo(String barcode) {
+  /// "2 of 8 · " when this item is on several lines of the invoice (filled
+  /// in order), otherwise empty.
+  static String repeatLabel(List<DocDetail> items, DocDetail item) {
+    if (item.barcode == null) return '';
+    final same = items.where((i) => i.barcode == item.barcode).toList();
+    if (same.length < 2) return '';
+    return '${same.indexOf(item) + 1} of ${same.length} · ';
+  }
+
+  /// Scrolls to that exact line (the same item can be on several lines).
+  void _scrollTo(DocDetail line) {
     final items = con.docMaster.value.docDetails ?? const <DocDetail>[];
-    final index = items.indexWhere((i) => i.barcode == barcode);
+    final index = items.indexWhere(
+        (i) => i.slNo == line.slNo && i.barcode == line.barcode);
     final sc = con.scrollController;
     if (index < 0 || !sc.hasClients) return;
     final target =
@@ -236,8 +247,10 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
                             final item = items[index];
                             final ship = item.shipQty ?? 0;
                             final check = item.checkQty ?? 0;
+                            // the exact line being filled, not every line of that item
                             final state = item.barcode != null &&
-                                    item.barcode == selected.barcode
+                                    item.barcode == selected.barcode &&
+                                    item.slNo == selected.slNo
                                 ? ItemState.active
                                 : check == ship
                                     ? ItemState.done
@@ -247,10 +260,12 @@ class _ScanInvoiceScreenState extends State<ScanInvoiceScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: Space.sm),
                               child: ItemCard(
+                                // invoice line number, to compare with the paper invoice
+                                leading: '${item.slNo ?? index + 1}',
                                 title: item.partName ?? '',
                                 titleMaxLines: 1,
                                 subtitle:
-                                    '${item.partNum ?? ''} · ${item.barcode ?? ''}',
+                                    '${repeatLabel(items, item)}${item.partNum ?? ''} · ${item.barcode ?? ''}',
                                 quantity: '$check / $ship',
                                 state: state,
                                 // Debug builds only (guarded in the controller): pre-fill this item.
