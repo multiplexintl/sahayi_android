@@ -19,7 +19,8 @@ import '../../ui/ui.dart';
 class CustomerSelectScreen extends StatelessWidget {
   const CustomerSelectScreen({super.key});
 
-  static final _dateFormat = DateFormat('dd-MM-yyyy'); // format the controller expects
+  static final _dateFormat =
+      DateFormat('dd-MM-yyyy'); // format the controller expects
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +34,9 @@ class CustomerSelectScreen extends StatelessWidget {
         final max = DateTime(today.year, today.month, today.day);
         DateTime? initial;
         try {
-          initial = con.docDateController.text.isEmpty ? null : _dateFormat.parse(con.docDateController.text);
+          initial = con.docDateController.text.isEmpty
+              ? null
+              : _dateFormat.parse(con.docDateController.text);
         } catch (_) {}
         final picked = await showDatePicker(
           context: context,
@@ -66,92 +69,116 @@ class CustomerSelectScreen extends StatelessWidget {
         child: Scaffold(
           appBar: AppTopBar(
             title: 'New return',
-            badge: const DocTypeBadge('R'),
-            actions: [if (kDebugMode) const _DeveloperMenu()],
+            badge: DocTypeBadge('R'),
+            actions: [if (kDebugMode) _DeveloperMenu(con: con)],
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
+            padding: const EdgeInsets.fromLTRB(
+                Space.screen, Space.xs, Space.screen, Space.xl),
             children: [
               AppCard(
                 child: GetBuilder<ReturnController>(builder: (_) {
                   return Obx(() {
                     final hasCompany = con.selectedCompany.value != null;
                     final busy = con.selectIsLoading.value;
-                    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      AppSelectField<Company>(
-                        label: 'Company',
-                        placeholder: 'Select company',
-                        icon: Icons.business_rounded,
-                        value: con.selectedCompany.value,
-                        items: con.companyList,
-                        itemLabel: (co) => co.companyName ?? co.companyId ?? '',
-                        itemSubtitle: (co) => co.companyId,
-                        enabled: !con.syncIsLoading.value,
-                        onChanged: con.syncIsLoading.value ? null : con.selectComapny,
-                      ),
-                      const SizedBox(height: Space.md),
-                      _CustomerField(con: con, enabled: hasCompany),
-                      const SizedBox(height: Space.md),
-                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Expanded(
-                          child: AppTextField(
-                            label: 'Document no.',
-                            hint: 'e.g. 2025-37088',
-                            controller: con.docNumController,
-                            enabled: hasCompany,
+                    return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppSelectField<Company>(
+                            label: 'Company',
+                            placeholder: 'Select company',
+                            icon: Icons.business_rounded,
+                            value: con.selectedCompany.value,
+                            items: con.companyList,
+                            itemLabel: (co) =>
+                                co.companyName ?? co.companyId ?? '',
+                            itemSubtitle: (co) => co.companyId,
+                            enabled: !con.syncIsLoading.value,
+                            onChanged: con.syncIsLoading.value
+                                ? null
+                                : con.selectComapny,
                           ),
-                        ),
-                        const SizedBox(width: Space.sm),
-                        Expanded(
-                          child: AppTextField(
-                            label: 'Date',
-                            hint: 'dd-mm-yyyy',
-                            controller: con.docDateController,
-                            enabled: hasCompany,
-                            readOnly: true,
-                            onTap: pickDate,
-                            suffix: const Icon(Icons.calendar_today_rounded, size: 18),
+                          const SizedBox(height: Space.md),
+                          _CustomerField(con: con, enabled: hasCompany),
+                          const SizedBox(height: Space.md),
+                          Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: AppTextField(
+                                    label: 'Document no.',
+                                    hint: 'e.g. 2025-37088',
+                                    controller: con.docNumController,
+                                    enabled: hasCompany,
+                                  ),
+                                ),
+                                const SizedBox(width: Space.sm),
+                                Expanded(
+                                  child: AppTextField(
+                                    label: 'Date',
+                                    hint: 'dd-mm-yyyy',
+                                    controller: con.docDateController,
+                                    enabled: hasCompany,
+                                    readOnly: true,
+                                    onTap: pickDate,
+                                    additionalDecoration: InputDecoration(
+                                        suffix: const Icon(
+                                            Icons.calendar_today_rounded,
+                                            size: 18),
+                                        contentPadding: EdgeInsets.only(
+                                          left: 5,
+                                          right: 5,
+                                          top: 13,
+                                          bottom: 13,
+                                        )),
+                                  ),
+                                ),
+                              ]),
+                          const SizedBox(height: Space.md),
+                          AppSelectField<Pickers>(
+                            label: 'Returned by (driver / helper)',
+                            placeholder: 'Select driver',
+                            icon: Icons.local_shipping_outlined,
+                            value: con.selectedDriver.value,
+                            items: con.driverList,
+                            itemLabel: (p) => p.name ?? '',
+                            itemSubtitle: (p) => p.id,
+                            enabled: hasCompany && !busy,
+                            onChanged:
+                                hasCompany && !busy ? con.selectDriver : null,
                           ),
-                        ),
-                      ]),
-                      const SizedBox(height: Space.md),
-                      AppSelectField<Pickers>(
-                        label: 'Returned by (driver / helper)',
-                        placeholder: 'Select driver',
-                        icon: Icons.local_shipping_outlined,
-                        value: con.selectedDriver.value,
-                        items: con.driverList,
-                        itemLabel: (p) => p.name ?? '',
-                        itemSubtitle: (p) => p.id,
-                        enabled: hasCompany && !busy,
-                        onChanged: hasCompany && !busy ? con.selectDriver : null,
-                      ),
-                      const SizedBox(height: Space.lg),
-                      Row(children: [
-                        Expanded(
-                          child: AppButton.secondary(label: 'Clear', onPressed: con.clearCustSelction),
-                        ),
-                        const SizedBox(width: Space.sm),
-                        Expanded(
-                          flex: 2,
-                          child: AppButton(
-                            label: 'Start return',
-                            icon: Icons.arrow_forward_rounded,
-                            iconAfter: true,
-                            loading: busy,
-                            onPressed: busy ? null : () => con.onSubmit(null),
-                          ),
-                        ),
-                      ]),
-                    ]);
+                          const SizedBox(height: Space.lg),
+                          Row(children: [
+                            Expanded(
+                              child: AppButton.secondary(
+                                  label: 'Clear',
+                                  onPressed: con.clearCustSelction),
+                            ),
+                            const SizedBox(width: Space.sm),
+                            Expanded(
+                              flex: 2,
+                              child: AppButton(
+                                label: 'Start return',
+                                icon: Icons.arrow_forward_rounded,
+                                iconAfter: true,
+                                loading: busy,
+                                onPressed:
+                                    busy ? null : () => con.onSubmit(null),
+                              ),
+                            ),
+                          ]),
+                        ]);
                   });
                 }),
               ),
               Obx(() => SectionLabel(
                     'Unfinished returns',
-                    padding: const EdgeInsets.fromLTRB(Space.xs, Space.xl, Space.xs, Space.sm),
+                    padding: const EdgeInsets.fromLTRB(
+                        Space.xs, Space.xl, Space.xs, Space.sm),
                     trailing: StatusChip(
-                      kind: con.unFinishedDocs.isEmpty ? StatusKind.neutral : StatusKind.warning,
+                      kind: con.unFinishedDocs.isEmpty
+                          ? StatusKind.neutral
+                          : StatusKind.warning,
                       label: '${con.unFinishedDocs.length}',
                       small: true,
                     ),
@@ -172,14 +199,19 @@ class CustomerSelectScreen extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
                         child: Row(children: [
                           Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('${doc.custName ?? ''} · ${doc.custID ?? ''}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 2),
-                              Text('Doc ${doc.docNum ?? ''}', style: t.bodySmall),
-                            ]),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      '${doc.custName ?? ''} · ${doc.custID ?? ''}',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: t.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 2),
+                                  Text('Doc ${doc.docNum ?? ''}',
+                                      style: t.bodySmall),
+                                ]),
                           ),
                           AppIconButton(
                             icon: Icons.delete_outline_rounded,
@@ -197,8 +229,10 @@ class CustomerSelectScreen extends StatelessWidget {
                                 backgroundColor: c.primarySoft,
                                 foregroundColor: c.onPrimarySoft,
                                 minimumSize: const Size(0, 40),
-                                padding: const EdgeInsets.symmetric(horizontal: 14),
-                                shape: RoundedRectangleBorder(borderRadius: Radii.all(Radii.md)),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: Radii.all(Radii.md)),
                               ),
                               onPressed: () => con.onSubmit(doc),
                               child: const Text('Resume'),
@@ -291,10 +325,12 @@ class _CustomerSearchSheetState extends State<_CustomerSearchSheet> {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.75,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.md),
             child: Text('Customer', style: t.titleLarge),
@@ -310,7 +346,10 @@ class _CustomerSearchSheetState extends State<_CustomerSearchSheet> {
                 suffixIcon: _loading
                     ? const Padding(
                         padding: EdgeInsets.all(14),
-                        child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
                       )
                     : null,
               ),
@@ -319,11 +358,15 @@ class _CustomerSearchSheetState extends State<_CustomerSearchSheet> {
           Expanded(
             child: _results.isEmpty
                 ? Center(
-                    child: Text(_query.trim().isEmpty ? 'Type to search' : (_loading ? '' : 'No customers found'),
+                    child: Text(
+                        _query.trim().isEmpty
+                            ? 'Type to search'
+                            : (_loading ? '' : 'No customers found'),
                         style: t.bodySmall),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(Space.sm, Space.sm, Space.sm, Space.lg),
+                    padding: const EdgeInsets.fromLTRB(
+                        Space.sm, Space.sm, Space.sm, Space.lg),
                     itemCount: _results.length,
                     itemBuilder: (context, i) {
                       final cust = _results[i];
@@ -344,18 +387,31 @@ class _CustomerSearchSheetState extends State<_CustomerSearchSheet> {
 
 /// Debug builds only: replaces the hidden long-press on Submit.
 class _DeveloperMenu extends StatelessWidget {
-  const _DeveloperMenu();
+  final ReturnController con;
+  const _DeveloperMenu({required this.con});
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
         tooltip: 'Developer tools',
         icon: const Icon(Icons.build_circle_outlined),
-        onSelected: (_) async {
-          await DBHelper.listColumnsInTable(DBHelper.docMaster);
-          await DBHelper.listColumnsInTable(DBHelper.docDetail);
+        onSelected: (value) async {
+          if (value == 'list') {
+            con.getPickers();
+          }
+          if (value == 'cols') {
+            await DBHelper.listColumnsInTable(DBHelper.docMaster);
+            await DBHelper.listColumnsInTable(DBHelper.docDetail);
+          }
         },
         itemBuilder: (_) => const [
-          PopupMenuItem(value: 'cols', child: Text('Developer: log table columns')),
+          PopupMenuItem(
+            value: 'cols',
+            child: Text('Developer: log table columns'),
+          ),
+          PopupMenuItem(
+            value: 'list',
+            child: Text('Developer: get driver list'),
+          ),
         ],
       );
 }

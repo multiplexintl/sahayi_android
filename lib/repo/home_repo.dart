@@ -88,7 +88,8 @@ class HomeRepo {
         } else {
           log(response.body.toString());
           // Throw so RetryHelper retries server errors (an empty list is a valid answer).
-          throw HttpException('DocumentGetRecords returned HTTP ${response.statusCode}');
+          throw HttpException(
+              'DocumentGetRecords returned HTTP ${response.statusCode}');
         }
       },
       defaultValue: [],
@@ -144,7 +145,8 @@ class HomeRepo {
               jsonList.map((json) => Company.fromJson(json)).toList();
           return invoices;
         } else {
-          throw HttpException('GetCompanyMaster returned HTTP ${response.statusCode}');
+          throw HttpException(
+              'GetCompanyMaster returned HTTP ${response.statusCode}');
         }
       },
       defaultValue: [],
@@ -163,14 +165,15 @@ class HomeRepo {
         final response = await client.get(url);
         log("Response Code get invoice: ${response.statusCode}");
         if (response.statusCode == 200) {
-          // log(response.body.toString());
+          log(response.body.toString());
           List<dynamic> jsonList = json.decode(response.body);
-          // log(response.body.toString());
+          log(response.body.toString());
           List<Pickers> invoices =
               jsonList.map((json) => Pickers.fromJson(json)).toList();
           return invoices;
         } else {
-          throw HttpException('GetUserList returned HTTP ${response.statusCode}');
+          throw HttpException(
+              'GetUserList returned HTTP ${response.statusCode}');
         }
       },
       defaultValue: [],

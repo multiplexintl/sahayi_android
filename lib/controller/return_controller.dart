@@ -81,7 +81,8 @@ class ReturnController extends GetxController {
         );
       }
     } catch (e, st) {
-      AppLogger.error('LoadCompanies', 'Failed to load companies', error: e, stack: st);
+      AppLogger.error('LoadCompanies', 'Failed to load companies',
+          error: e, stack: st);
       CustomWidget.customSnackBar(
         title: "Error!!",
         message: "Failed to load companies. Error: $e",
@@ -108,7 +109,8 @@ class ReturnController extends GetxController {
         );
       }
     } catch (e, st) {
-      AppLogger.error('LoadPickers', 'Failed to load drivers', error: e, stack: st);
+      AppLogger.error('LoadPickers', 'Failed to load drivers',
+          error: e, stack: st);
       CustomWidget.customSnackBar(
         title: "Error!!",
         message: "Failed to load companies. Error: $e",
@@ -191,8 +193,10 @@ class ReturnController extends GetxController {
 
     log(dets.toString());
     if (dets != -1) {
-      AppLogger.warn('ReturnClearItems', 'User cleared all scanned items ($dets rows)',
-          docNum: "${selectedCustomer.value.custId}${docNumber.value}", docType: 'R');
+      AppLogger.warn(
+          'ReturnClearItems', 'User cleared all scanned items ($dets rows)',
+          docNum: "${selectedCustomer.value.custId}${docNumber.value}",
+          docType: 'R');
       savedItems.clear();
     } else {
       CustomWidget.customSnackBar(
@@ -222,14 +226,15 @@ class ReturnController extends GetxController {
             docNum: "${item.custID}${item.docNum}", docType: 'R');
 
         // Step 1 fix: guard firstWhere — missing company/driver shows clear error
-        final company = companyList.firstWhereOrNull(
-            (test) => test.companyId == item.company);
+        final company = companyList
+            .firstWhereOrNull((test) => test.companyId == item.company);
         if (company == null) {
           log("❌ Company not found in list: ${item.company}");
           CustomWidget.customSnackBar(
             backgroundColor: Colors.red,
             title: "Company Not Found",
-            message: "Could not find company for this document. Please restart the app.",
+            message:
+                "Could not find company for this document. Please restart the app.",
           );
           return;
         }
@@ -241,15 +246,16 @@ class ReturnController extends GetxController {
         selectedCustomer.value.custName = item.custName;
         docNumber.value = item.docNum;
         docDate.value = item.docDate?.toString() ?? DateTime.now().toString();
-
-        final foundDriver = driverList.firstWhereOrNull(
-            (element) => element.id == item.pickedBy);
+        log(selectedCustomer.toString());
+        final foundDriver = driverList
+            .firstWhereOrNull((element) => element.id == item.pickedBy);
         if (foundDriver == null) {
           log("❌ Driver not found in list: ${item.pickedBy}");
           CustomWidget.customSnackBar(
             backgroundColor: Colors.red,
             title: "Driver Not Found",
-            message: "Could not find driver for this document. Please reload pickers and try again.",
+            message:
+                "Could not find driver for this document. Please reload pickers and try again.",
           );
           return;
         }
@@ -261,13 +267,15 @@ class ReturnController extends GetxController {
         try {
           apiRes = await getReturnDetails();
         } catch (e) {
-          AppLogger.error('ReturnResume', 'Could not check server for existing return',
+          AppLogger.error(
+              'ReturnResume', 'Could not check server for existing return',
               error: e, docNum: fullDocNum, docType: 'R');
           log("❌ Network error fetching return details: $e");
           CustomWidget.customSnackBar(
             backgroundColor: Colors.red,
             title: "Connection Error",
-            message: "Could not connect to server. Check your connection and try again.",
+            message:
+                "Could not connect to server. Check your connection and try again.",
           );
           return;
         }
@@ -314,7 +322,8 @@ class ReturnController extends GetxController {
             CustomWidget.customSnackBar(
               backgroundColor: Colors.red,
               title: "Database Error",
-              message: "Failed to update item sequence numbers locally. Try again.",
+              message:
+                  "Failed to update item sequence numbers locally. Try again.",
             );
             return;
           }
@@ -366,12 +375,14 @@ class ReturnController extends GetxController {
         apiRes = await getReturnDetails();
       } catch (e) {
         log("❌ Network error fetching return details: $e");
-        AppLogger.error('ReturnStart', 'Could not check server for existing return',
+        AppLogger.error(
+            'ReturnStart', 'Could not check server for existing return',
             error: e, docNum: fullDocNum, docType: 'R');
         CustomWidget.customSnackBar(
           backgroundColor: Colors.red,
           title: "Connection Error",
-          message: "Could not connect to server. Check your connection and try again.",
+          message:
+              "Could not connect to server. Check your connection and try again.",
         );
         return;
       }
@@ -440,7 +451,8 @@ class ReturnController extends GetxController {
         _handleContinue(fullDocNum, lastApiSlNo - 1);
       }
     } catch (e, stackTrace) {
-      AppLogger.error('ReturnStart', 'onSubmit crashed', error: e, stack: stackTrace);
+      AppLogger.error('ReturnStart', 'onSubmit crashed',
+          error: e, stack: stackTrace);
       log("❌ Error in onSubmit: $e");
       log("StackTrace: $stackTrace");
       // Step 5 fix: show actual error so user/support can act on it
@@ -841,7 +853,8 @@ class ReturnController extends GetxController {
       (error) {
         // Handle only real API failure here
         if (error != "No Item Found!!") {
-          AppLogger.warn('PartLookup', 'Lookup failed for barcode $barcode: $error');
+          AppLogger.warn(
+              'PartLookup', 'Lookup failed for barcode $barcode: $error');
           CustomWidget.customSnackBar(
             title: "Error",
             message: "Unable to fetch item details. Please check the barcode.",
@@ -999,7 +1012,9 @@ class ReturnController extends GetxController {
       barcodeFocusNode.requestFocus();
     } else {
       AppLogger.error('LocalDbError', 'Failed to save return line on device',
-          docNum: fullDocNum, docType: 'R', details: 'Barcode ${barcodeController.text}');
+          docNum: fullDocNum,
+          docType: 'R',
+          details: 'Barcode ${barcodeController.text}');
       CustomWidget.customSnackBar(
         title: "Error!!",
         message: "Something went wrong, please refresh the app",
@@ -1038,7 +1053,8 @@ class ReturnController extends GetxController {
       getTotalQty();
       AppLogger.info('ReturnReview',
           '${savedItems.length} lines (${consolidatedSavedItems.length} after merge), total qty ${totalQty.value}',
-          docNum: "${selectedCustomer.value.custId}${docNumber.value}", docType: 'R');
+          docNum: "${selectedCustomer.value.custId}${docNumber.value}",
+          docType: 'R');
       log(json.encode(consolidatedSavedItems));
       Get.toNamed(RouteLinks.finlaizeReturns);
     }
@@ -1167,12 +1183,14 @@ class ReturnController extends GetxController {
       try {
         apiRes = await getReturnDetails();
       } catch (e) {
-        AppLogger.error('FinalizeFailed', 'Could not check server before upload',
+        AppLogger.error(
+            'FinalizeFailed', 'Could not check server before upload',
             error: e, docNum: logDocNum, docType: 'R');
         log("Network error fetching return details: $e");
         CustomWidget.customSnackBar(
           title: "Connection Error",
-          message: "Could not connect to server. Check your connection and try again.",
+          message:
+              "Could not connect to server. Check your connection and try again.",
           backgroundColor: Colors.red,
         );
         finalizeIsLoading.value = false;
@@ -1180,7 +1198,8 @@ class ReturnController extends GetxController {
       }
 
       int apiCount = apiRes.isNotEmpty
-          ? (apiRes[0].docDetails?.map((d) => d.slNo ?? 0).fold<int>(0, max) ?? 0)
+          ? (apiRes[0].docDetails?.map((d) => d.slNo ?? 0).fold<int>(0, max) ??
+              0)
           : 0;
       log("API Max SlNo: $apiCount");
       apiCount += 1;
@@ -1258,30 +1277,33 @@ class ReturnController extends GetxController {
 
       if (resDet != -1 && resMaster != -1) {
         log("DB cleanup successful.");
-        AppLogger.info('FinalizeDone', 'Return uploaded and cleared from device',
+        AppLogger.info(
+            'FinalizeDone', 'Return uploaded and cleared from device',
             docNum: logDocNum, docType: 'R');
         savedItems.clear();
         consolidatedSavedItems.clear();
-        selectedCustomer.value = Customer();
+        // selectedCustomer.value = Customer();
         selectedPart.value = null;
         finalizeIsLoading.value = false;
         return true;
       } else {
         // Upload succeeded but local cleanup failed — warn user, do NOT let them retry (would double-upload)
         log("DB cleanup failed after successful API upload.");
-        AppLogger.error('FinalizeCleanup', 'Uploaded, but clearing device data failed',
+        AppLogger.error(
+            'FinalizeCleanup', 'Uploaded, but clearing device data failed',
             docNum: logDocNum, docType: 'R');
         CustomWidget.customSnackBar(
           title: "Warning",
-          message: "Return was uploaded to server but local data cleanup failed. Please contact support.",
+          message:
+              "Return was uploaded to server but local data cleanup failed. Please contact support.",
           backgroundColor: Colors.orange,
         );
         finalizeIsLoading.value = false;
         return true;
       }
     } catch (e, st) {
-      AppLogger.error('FinalizeFailed', 'finalize crashed', error: e, stack: st,
-          docNum: logDocNum, docType: 'R');
+      AppLogger.error('FinalizeFailed', 'finalize crashed',
+          error: e, stack: st, docNum: logDocNum, docType: 'R');
       log("Error in finalize(): $e");
       CustomWidget.customSnackBar(
         title: "Unexpected Error",
@@ -1315,7 +1337,8 @@ class ReturnController extends GetxController {
       log("$insertCount rows inserted into $tableName.");
       return true;
     } catch (e, stacktrace) {
-      AppLogger.error('LocalDbError', 'Failed to write $tableName', error: e, stack: stacktrace);
+      AppLogger.error('LocalDbError', 'Failed to write $tableName',
+          error: e, stack: stacktrace);
       log("Database error on table $tableName: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(
@@ -1381,7 +1404,8 @@ class ReturnController extends GetxController {
       log(res2.toString());
 
       if (res > 0 && res2 != -1) {
-        AppLogger.warn('ReturnDiscard', 'User deleted unfinished return from device',
+        AppLogger.warn(
+            'ReturnDiscard', 'User deleted unfinished return from device',
             docNum: "${item.custID}${item.docNum}", docType: 'R');
         CustomWidget.customSnackBar(
           title: "Success",
@@ -1401,7 +1425,8 @@ class ReturnController extends GetxController {
         return false; // Deletion failed
       }
     } catch (e, st) {
-      AppLogger.error('ReturnDiscard', 'removeUnfinished crashed', error: e, stack: st);
+      AppLogger.error('ReturnDiscard', 'removeUnfinished crashed',
+          error: e, stack: st);
       CustomWidget.customSnackBar(
         title: "Error",
         message: "An error occurred: $e",

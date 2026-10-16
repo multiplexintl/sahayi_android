@@ -65,7 +65,8 @@ class InvoiceOrTransferController extends GetxController {
         );
       }
     } catch (e, st) {
-      AppLogger.error('LoadCompanies', 'Failed to load companies', error: e, stack: st);
+      AppLogger.error('LoadCompanies', 'Failed to load companies',
+          error: e, stack: st);
       CustomWidget.customSnackBar(
         title: "Error!!",
         message: "Failed to load companies. Error: $e",
@@ -87,7 +88,8 @@ class InvoiceOrTransferController extends GetxController {
         );
       }
     } catch (e, st) {
-      AppLogger.error('LoadPickers', 'Failed to load pickers', error: e, stack: st);
+      AppLogger.error('LoadPickers', 'Failed to load pickers',
+          error: e, stack: st);
       CustomWidget.customSnackBar(
         title: "Error!!",
         message: "Failed to load Drivers and Pickers. Error: $e",
@@ -230,8 +232,8 @@ class InvoiceOrTransferController extends GetxController {
         await _syncAndUpdateInvoice();
       }
     } catch (e, stacktrace) {
-      AppLogger.error('SyncFailed', 'syncInvoice crashed', error: e, stack: stacktrace,
-          docNum: invController.text);
+      AppLogger.error('SyncFailed', 'syncInvoice crashed',
+          error: e, stack: stacktrace, docNum: invController.text);
       log("Error in syncInvoice: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(
@@ -258,7 +260,8 @@ class InvoiceOrTransferController extends GetxController {
 
       syncResult.fold(
         (failureMessage) {
-          AppLogger.warn('SyncFailed', 'Server sync refused/failed: $failureMessage',
+          AppLogger.warn(
+              'SyncFailed', 'Server sync refused/failed: $failureMessage',
               docNum: invController.text, docType: isInvoice.value ? 'I' : 'T');
           CustomWidget.customSnackBar(
             title: "Error!",
@@ -275,8 +278,10 @@ class InvoiceOrTransferController extends GetxController {
           );
 
           if (invoiceList.isEmpty) {
-            AppLogger.warn('SyncNoItems', 'Synced but document details came back empty',
-                docNum: invController.text, docType: isInvoice.value ? 'I' : 'T');
+            AppLogger.warn(
+                'SyncNoItems', 'Synced but document details came back empty',
+                docNum: invController.text,
+                docType: isInvoice.value ? 'I' : 'T');
             CustomWidget.customSnackBar(
               title: "Error!!",
               message: "No invoice found. Try again.",
@@ -360,8 +365,8 @@ class InvoiceOrTransferController extends GetxController {
         },
       );
     } catch (e, stacktrace) {
-      AppLogger.error('SyncFailed', '_syncAndUpdateInvoice crashed', error: e, stack: stacktrace,
-          docNum: invController.text);
+      AppLogger.error('SyncFailed', '_syncAndUpdateInvoice crashed',
+          error: e, stack: stacktrace, docNum: invController.text);
       log("Error in _syncAndUpdateInvoice: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(
@@ -392,7 +397,8 @@ class InvoiceOrTransferController extends GetxController {
           await DBHelper.bulkInsert(tableName: tableName, items: data);
       log("$insertCount rows inserted into $tableName.");
     } catch (e, stacktrace) {
-      AppLogger.error('LocalDbError', 'Failed to write $tableName', error: e, stack: stacktrace);
+      AppLogger.error('LocalDbError', 'Failed to write $tableName',
+          error: e, stack: stacktrace);
       log("Database error on table $tableName: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(
@@ -486,7 +492,8 @@ class InvoiceOrTransferController extends GetxController {
             "No ${isInvoice.value ? 'Invoice' : 'Transfer'} found, Check details and sync again.");
       }
     } catch (e, stacktrace) {
-      AppLogger.error('OpenScan', 'getItemsThenToScanPage crashed', error: e, stack: stacktrace);
+      AppLogger.error('OpenScan', 'getItemsThenToScanPage crashed',
+          error: e, stack: stacktrace);
       log("Error in getItemsThenToScanPage: $e");
       log("Stacktrace: $stacktrace");
       _showErrorSnackbar("An error occurred: $e");
@@ -532,8 +539,22 @@ class InvoiceOrTransferController extends GetxController {
         CustomWidget.customDialogue(
           title: "Already Completed",
           subTitle:
-              "The scanned item has already reached the shipped quantity ($shipQty).",
-          onPressed: () => Get.back(),
+              "The scanned item has already reached the shipping quantity ($shipQty).",
+          onPressed: () {
+            clearInputFields();
+            // Clear focus and request focus again with a delay
+            barcodeFocusNode.unfocus();
+            qtyFocusNode.unfocus();
+            Future.delayed(Duration(milliseconds: 100), () {
+              if (barcodeFocusNode.canRequestFocus && !isFinalize.value) {
+                barcodeFocusNode.requestFocus();
+                log("Barcode focus requested");
+              } else {
+                log("Cannot request focus");
+              }
+            });
+            Get.back();
+          },
           okText: "OK",
           buttonColor: Colors.red,
         );
@@ -577,7 +598,8 @@ class InvoiceOrTransferController extends GetxController {
 
       if (result == 0) {
         AppLogger.error('LocalDbError', 'Quantity update matched 0 rows',
-            docNum: docMaster.value.docNum, details: 'Barcode ${scannedItem.value.barcode}');
+            docNum: docMaster.value.docNum,
+            details: 'Barcode ${scannedItem.value.barcode}');
         _showErrorSnackbar("Failed to update the database.");
         return false;
       }
@@ -598,10 +620,14 @@ class InvoiceOrTransferController extends GetxController {
       }
 
       // Check if all items' checkQty and shipQty are equal in the database
-      final allItemsMap =
-          await DBHelper.getAllItems(tableName: DBHelper.docDetail);
+      final allItemsMap = await DBHelper.getItems(
+          tableName: DBHelper.docDetail,
+          columnName: DBHelper.docTypeDocDetail,
+          condition: isInvoice.value ? "I" : "T");
       final allItems =
           allItemsMap.map((item) => DocDetail.fromJson(item)).toList();
+
+      log(allItems.toString());
 
       // Check if all items are finalized
       isFinalize.value =
@@ -628,8 +654,8 @@ class InvoiceOrTransferController extends GetxController {
 
       return true;
     } catch (e, stacktrace) {
-      AppLogger.error('SaveQty', 'saveQty crashed', error: e, stack: stacktrace,
-          docNum: docMaster.value.docNum);
+      AppLogger.error('SaveQty', 'saveQty crashed',
+          error: e, stack: stacktrace, docNum: docMaster.value.docNum);
       log("Error in saveQty: $e");
       log("Stacktrace: $stacktrace");
       _showErrorSnackbar("An error occurred while saving quantity.");
@@ -645,8 +671,6 @@ class InvoiceOrTransferController extends GetxController {
     qtyController.clear();
     scannedItem.value = DocDetail();
   }
-
-  
 
   // Future<void> finalize() async {
   //   try {
@@ -745,7 +769,8 @@ class InvoiceOrTransferController extends GetxController {
           onPressed: () async {
             Get.back(); // Close the dialog
             AppLogger.info('FinalizeConfirm', 'User confirmed finalize',
-                docNum: docMaster.value.docNum, docType: docMaster.value.docType);
+                docNum: docMaster.value.docNum,
+                docType: docMaster.value.docType);
             final success = await _callApi();
             if (success) {
               isFinalize.value = false; // Reset after success
@@ -773,8 +798,8 @@ class InvoiceOrTransferController extends GetxController {
         isFinalize.value = false; // Reset `isFinalize` if not matched
       }
     } catch (e, stacktrace) {
-      AppLogger.error('FinalizeFailed', 'finalize crashed', error: e, stack: stacktrace,
-          docNum: docMaster.value.docNum);
+      AppLogger.error('FinalizeFailed', 'finalize crashed',
+          error: e, stack: stacktrace, docNum: docMaster.value.docNum);
       log("Error in finalize: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(
@@ -802,7 +827,8 @@ class InvoiceOrTransferController extends GetxController {
       );
       log(result.toString());
       if (!result) {
-        AppLogger.error('FinalizeFailed', 'Server did not accept UpdateDocument',
+        AppLogger.error(
+            'FinalizeFailed', 'Server did not accept UpdateDocument',
             docNum: docMaster.value.docNum, docType: docMaster.value.docType);
         CustomWidget.customSnackBar(
           title: "Error!",
@@ -859,7 +885,8 @@ class InvoiceOrTransferController extends GetxController {
 
       // Confirm success if both deletions were successful
       if (masterDeleteResult != -1 && detailDeleteResult != -1) {
-        AppLogger.info('FinalizeDone', 'Submitted to server and cleared from device',
+        AppLogger.info(
+            'FinalizeDone', 'Submitted to server and cleared from device',
             docNum: lastInvTableData[DBHelper.docNumLastInvoices]?.toString(),
             docType: isInvoice.value ? 'I' : 'T');
         CustomWidget.customDialogue(
@@ -874,7 +901,8 @@ class InvoiceOrTransferController extends GetxController {
         isFinalize.value = false;
         return true;
       } else {
-        AppLogger.error('FinalizeCleanup', 'Submitted, but clearing device data failed',
+        AppLogger.error(
+            'FinalizeCleanup', 'Submitted, but clearing device data failed',
             docNum: docMaster.value.docNum);
         CustomWidget.customSnackBar(
           title: "Error!",
@@ -884,8 +912,8 @@ class InvoiceOrTransferController extends GetxController {
         return false;
       }
     } catch (e, stacktrace) {
-      AppLogger.error('FinalizeFailed', '_callApi crashed', error: e, stack: stacktrace,
-          docNum: docMaster.value.docNum);
+      AppLogger.error('FinalizeFailed', '_callApi crashed',
+          error: e, stack: stacktrace, docNum: docMaster.value.docNum);
       log("Error in _callApi: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(
@@ -1008,7 +1036,8 @@ class InvoiceOrTransferController extends GetxController {
         },
       );
     } catch (e, stacktrace) {
-      AppLogger.error('ClearLocal', 'clearInvoiceDB crashed', error: e, stack: stacktrace);
+      AppLogger.error('ClearLocal', 'clearInvoiceDB crashed',
+          error: e, stack: stacktrace);
       log("Error in clearInvoiceDB: $e");
       log("Stacktrace: $stacktrace");
       CustomWidget.customSnackBar(

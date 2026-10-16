@@ -1,7 +1,10 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sahayi_android/controller/return_controller.dart';
 import 'package:sahayi_android/model/invoice/doc_detail.dart';
+import 'package:sahayi_android/model/return/customer.dart';
 
 import '../../ui/ui.dart';
 
@@ -29,6 +32,7 @@ class FinalizeReturnScreen extends StatelessWidget {
       final t = Theme.of(context).textTheme;
 
       Future<void> finalizeReturn() async {
+        log(con.selectedCustomer.value.toString());
         final ok = await con.finalize();
         if (!ok) {
           AppToast.error('Not finalized', 'Something went wrong, try again.');
@@ -39,7 +43,8 @@ class FinalizeReturnScreen extends StatelessWidget {
             canPop: false,
             child: Builder(
                 builder: (context) => AlertDialog(
-                      icon: Icon(Icons.check_circle_rounded, color: context.c.success, size: 48),
+                      icon: Icon(Icons.check_circle_rounded,
+                          color: context.c.success, size: 48),
                       title: const Text('Return finalized'),
                       content: Text(
                         'The return of ${con.selectedCustomer.value.custName}, document ${con.docNumber.value}, '
@@ -49,6 +54,7 @@ class FinalizeReturnScreen extends StatelessWidget {
                         AppButton(
                           label: 'Done',
                           onPressed: () {
+                            con.selectedCustomer.value = Customer();
                             con.getUnfinishedDocs();
                             con.update();
                             Get.close(3);
@@ -63,8 +69,10 @@ class FinalizeReturnScreen extends StatelessWidget {
 
       void showDetails(DocDetail item) {
         final entries = con.savedItems
-            .where(
-                (p) => p.barcode == item.barcode && p.reasonCode == item.reasonCode && p.expiryDate == item.expiryDate)
+            .where((p) =>
+                p.barcode == item.barcode &&
+                p.reasonCode == item.reasonCode &&
+                p.expiryDate == item.expiryDate)
             .map((e) => e.checkQty ?? 0)
             .toList();
         final total = entries.fold<int>(0, (a, b) => a + b);
@@ -74,17 +82,24 @@ class FinalizeReturnScreen extends StatelessWidget {
           isScrollControlled: true,
           builder: (context) => SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.xl),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text(item.partName ?? '', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: Space.md),
-              KeyValueRow('Barcode', item.barcode),
-              KeyValueRow('Reason', item.reasonName),
-              if (item.expiryDate != null) KeyValueRow('Expiry', formatDate(item.expiryDate)),
-              KeyValueRow('Entries', entries.join(' + ')),
-              KeyValueRow('Total', '$total'),
-              const SizedBox(height: Space.lg),
-              AppButton.secondary(label: 'Close', onPressed: () => Navigator.of(context).pop()),
-            ]),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(item.partName ?? '',
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: Space.md),
+                  KeyValueRow('Barcode', item.barcode),
+                  KeyValueRow('Reason', item.reasonName),
+                  if (item.expiryDate != null)
+                    KeyValueRow('Expiry', formatDate(item.expiryDate)),
+                  KeyValueRow('Entries', entries.join(' + ')),
+                  KeyValueRow('Total', '$total'),
+                  const SizedBox(height: Space.lg),
+                  AppButton.secondary(
+                      label: 'Close',
+                      onPressed: () => Navigator.of(context).pop()),
+                ]),
           ),
         );
       }
@@ -101,11 +116,13 @@ class FinalizeReturnScreen extends StatelessWidget {
               onBack: loading ? () {} : null,
             ),
             body: ListView(
-              padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
+              padding: const EdgeInsets.fromLTRB(
+                  Space.screen, Space.xs, Space.screen, Space.xl),
               children: [
                 AppCard(
                   radius: Radii.lg,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: Space.sm),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: Space.sm),
                   child: Column(children: [
                     KeyValueRow('Customer',
                         '${con.selectedCustomer.value.custName ?? ''} · ${con.selectedCustomer.value.custId ?? ''}'),
@@ -116,11 +133,15 @@ class FinalizeReturnScreen extends StatelessWidget {
                 ),
                 SectionLabel(
                   'Items (merged)',
-                  padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
-                  trailing: Text('${con.consolidatedSavedItems.length}', style: t.labelSmall),
+                  padding: const EdgeInsets.fromLTRB(
+                      Space.xs, Space.lg, Space.xs, Space.sm),
+                  trailing: Text('${con.consolidatedSavedItems.length}',
+                      style: t.labelSmall),
                 ),
                 if (loading)
-                  const Padding(padding: EdgeInsets.all(Space.xxl), child: Center(child: CircularProgressIndicator()))
+                  const Padding(
+                      padding: EdgeInsets.all(Space.xxl),
+                      child: Center(child: CircularProgressIndicator()))
                 else
                   for (final (i, item) in con.consolidatedSavedItems.indexed)
                     Padding(
@@ -133,7 +154,8 @@ class FinalizeReturnScreen extends StatelessWidget {
                         quantity: '${item.checkQty ?? 0}',
                         state: ItemState.done,
                         statusLabel: item.reasonCode ?? '',
-                        trailing: Icon(Icons.chevron_right_rounded, color: c.muted),
+                        trailing:
+                            Icon(Icons.chevron_right_rounded, color: c.muted),
                         onTap: () => showDetails(item),
                       ),
                     ),
@@ -141,19 +163,25 @@ class FinalizeReturnScreen extends StatelessWidget {
             ),
             bottomNavigationBar: SafeArea(
               child: Container(
-                padding: const EdgeInsets.fromLTRB(Space.screen, Space.sm, Space.screen, Space.md),
+                padding: const EdgeInsets.fromLTRB(
+                    Space.screen, Space.sm, Space.screen, Space.md),
                 decoration: BoxDecoration(
                   color: c.background,
                   border: Border(top: BorderSide(color: c.divider)),
                 ),
                 child: Row(children: [
                   Expanded(
-                    child:
-                        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Total quantity', style: t.bodySmall),
-                      Text('${con.totalQty.value}',
-                          style: t.headlineSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
-                    ]),
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Total quantity', style: t.bodySmall),
+                          Text('${con.totalQty.value}',
+                              style: t.headlineSmall?.copyWith(
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ])),
+                        ]),
                   ),
                   Expanded(
                     flex: 2,

@@ -12,7 +12,8 @@ import '../../ui/ui.dart';
 class ReportViewPage extends StatelessWidget {
   const ReportViewPage({super.key});
 
-  static final _dateFormat = DateFormat('dd-MM-yyyy'); // format the controller uses
+  static final _dateFormat =
+      DateFormat('dd-MM-yyyy'); // format the controller uses
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +25,8 @@ class ReportViewPage extends StatelessWidget {
 
       Future<void> pickDate({required bool isFrom}) async {
         final today = DateTime.now();
-        final ctrl = isFrom ? con.fromDateController.value : con.toDateController.value;
+        final ctrl =
+            isFrom ? con.fromDateController.value : con.toDateController.value;
         DateTime? initial;
         try {
           initial = ctrl.text.isEmpty ? null : _dateFormat.parse(ctrl.text);
@@ -51,75 +53,106 @@ class ReportViewPage extends StatelessWidget {
           appBar: AppTopBar(title: 'Report', subtitle: user.empName),
           body: CustomScrollView(slivers: [
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, 0),
+              padding: const EdgeInsets.fromLTRB(
+                  Space.screen, Space.xs, Space.screen, 0),
               sliver: SliverToBoxAdapter(
                 child: AppCard(
                   child: Obx(() {
                     final busy = con.isLoading.value;
-                    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      Text('Document type', style: t.labelMedium),
-                      const SizedBox(height: Space.xs + 2),
-                      Wrap(spacing: Space.sm, runSpacing: Space.xs, children: [
-                        for (final type in types)
-                          ChoiceChip(
-                            label: Text(type.values.first.toString()),
-                            selected: con.selectedType.value?.keys.first == type.keys.first,
-                            onSelected: busy ? null : (_) => con.selectedType.value = type,
+                    return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text('Document type', style: t.labelMedium),
+                          const SizedBox(height: Space.xs + 2),
+                          Wrap(
+                              spacing: Space.xxs,
+                              runSpacing: Space.xxs,
+                              children: [
+                                for (final type in types)
+                                  ChoiceChip(
+                                    label: Text(type.values.first.toString()),
+                                    selected:
+                                        con.selectedType.value?.keys.first ==
+                                            type.keys.first,
+                                    onSelected: busy
+                                        ? null
+                                        : (_) => con.selectedType.value = type,
+                                  ),
+                              ]),
+                          const SizedBox(height: Space.md),
+                          Row(children: [
+                            Expanded(
+                              child: AppTextField(
+                                label: 'From',
+                                controller: con.fromDateController.value,
+                                readOnly: true,
+                                enabled: !busy,
+                                onTap: () => pickDate(isFrom: true),
+                                additionalDecoration: InputDecoration(
+                                  suffix: const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 15,
+                                  ),
+                                  contentPadding: EdgeInsets.only(
+                                      left: 5, right: 5, top: 13, bottom: 13),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: Space.sm),
+                            Expanded(
+                              child: AppTextField(
+                                label: 'To',
+                                controller: con.toDateController.value,
+                                readOnly: true,
+                                enabled: !busy,
+                                onTap: () => pickDate(isFrom: false),
+                                additionalDecoration: InputDecoration(
+                                  suffix: const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 15,
+                                  ),
+                                  contentPadding: EdgeInsets.only(
+                                      left: 5, right: 5, top: 13, bottom: 13),
+                                ),
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: Space.xs),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            title: Text('All companies', style: t.bodyMedium),
+                            subtitle: Text(
+                                'Off: only ${user.company ?? 'your company'}',
+                                style: t.bodySmall),
+                            value: con.fetchAll.value,
+                            onChanged:
+                                busy ? null : (v) => con.fetchAll.value = v,
                           ),
-                      ]),
-                      const SizedBox(height: Space.md),
-                      Row(children: [
-                        Expanded(
-                          child: AppTextField(
-                            label: 'From',
-                            controller: con.fromDateController.value,
-                            readOnly: true,
-                            enabled: !busy,
-                            onTap: () => pickDate(isFrom: true),
-                            suffix: const Icon(Icons.calendar_today_rounded, size: 18),
-                          ),
-                        ),
-                        const SizedBox(width: Space.sm),
-                        Expanded(
-                          child: AppTextField(
-                            label: 'To',
-                            controller: con.toDateController.value,
-                            readOnly: true,
-                            enabled: !busy,
-                            onTap: () => pickDate(isFrom: false),
-                            suffix: const Icon(Icons.calendar_today_rounded, size: 18),
-                          ),
-                        ),
-                      ]),
-                      const SizedBox(height: Space.xs),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: Text('All companies', style: t.bodyMedium),
-                        subtitle: Text('Off: only ${user.company ?? 'your company'}', style: t.bodySmall),
-                        value: con.fetchAll.value,
-                        onChanged: busy ? null : (v) => con.fetchAll.value = v,
-                      ),
-                      const SizedBox(height: Space.sm),
-                      Row(children: [
-                        Expanded(child: AppButton.secondary(label: 'Clear', onPressed: busy ? null : con.clearDates)),
-                        const SizedBox(width: Space.sm),
-                        Expanded(
-                          flex: 2,
-                          child: AppButton(
-                            label: 'Show report',
-                            icon: Icons.search_rounded,
-                            loading: busy,
-                            onPressed: busy
-                                ? null
-                                : () {
-                                    FocusManager.instance.primaryFocus?.unfocus();
-                                    con.fetchReport();
-                                  },
-                          ),
-                        ),
-                      ]),
-                    ]);
+                          const SizedBox(height: Space.sm),
+                          Row(children: [
+                            Expanded(
+                                child: AppButton.secondary(
+                                    label: 'Clear',
+                                    onPressed: busy ? null : con.clearDates)),
+                            const SizedBox(width: Space.sm),
+                            Expanded(
+                              flex: 2,
+                              child: AppButton(
+                                label: 'Show report',
+                                icon: Icons.search_rounded,
+                                loading: busy,
+                                onPressed: busy
+                                    ? null
+                                    : () {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        con.fetchReport();
+                                      },
+                              ),
+                            ),
+                          ]),
+                        ]);
                   }),
                 ),
               ),
@@ -128,17 +161,22 @@ class ReportViewPage extends StatelessWidget {
               child: Obx(() => con.reports.isEmpty
                   ? const SizedBox(height: Space.md)
                   : Padding(
-                      padding: const EdgeInsets.fromLTRB(Space.screen, Space.lg, Space.screen, Space.sm),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        AppTextField(
-                          controller: con.searchController,
-                          hint: 'Filter by document number',
-                          prefixIcon: Icons.filter_list_rounded,
-                          onChanged: con.filterReports,
-                        ),
-                        const SizedBox(height: Space.sm),
-                        Text('${con.filteredReports.length} of ${con.reports.length} documents', style: t.labelSmall),
-                      ]),
+                      padding: const EdgeInsets.fromLTRB(
+                          Space.screen, Space.lg, Space.screen, Space.sm),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AppTextField(
+                              controller: con.searchController,
+                              hint: 'Filter by document number',
+                              prefixIcon: Icons.filter_list_rounded,
+                              onChanged: con.filterReports,
+                            ),
+                            const SizedBox(height: Space.sm),
+                            Text(
+                                '${con.filteredReports.length} of ${con.reports.length} documents',
+                                style: t.labelSmall),
+                          ]),
                     )),
             ),
             Obx(() {
@@ -148,12 +186,14 @@ class ReportViewPage extends StatelessWidget {
                       ? const SizedBox.shrink()
                       : const EmptyState(
                           title: 'No report yet',
-                          message: 'Pick a type and dates, then tap Show report.',
+                          message:
+                              'Pick a type and dates, then tap Show report.',
                         ),
                 );
               }
               return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(Space.screen, 0, Space.screen, Space.xl),
+                padding: const EdgeInsets.fromLTRB(
+                    Space.screen, 0, Space.screen, Space.xl),
                 sliver: SliverList.separated(
                   itemCount: con.filteredReports.length,
                   separatorBuilder: (_, __) => const SizedBox(height: Space.sm),
@@ -176,7 +216,8 @@ class _ReportCard extends StatelessWidget {
   final Report report;
   final VoidCallback onTap;
   final Color muted;
-  const _ReportCard({required this.report, required this.onTap, required this.muted});
+  const _ReportCard(
+      {required this.report, required this.onTap, required this.muted});
 
   @override
   Widget build(BuildContext context) {
@@ -187,22 +228,28 @@ class _ReportCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, Space.md, Space.sm, Space.md),
       child: Row(children: [
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               DocTypeBadge(report.docType),
               const SizedBox(width: Space.sm),
               Flexible(
                 child: Text(report.docNum ?? '',
                     overflow: TextOverflow.ellipsis,
-                    style: t.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                    style: t.titleSmall?.copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()])),
               ),
             ]),
             const SizedBox(height: 4),
             Text('${report.custName ?? ''} · ${report.custId ?? ''}',
-                maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodyMedium),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: t.bodyMedium),
             const SizedBox(height: 2),
             Text('${report.company ?? ''} · ${report.scanTime ?? ''}',
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.bodySmall),
           ]),
         ),
         Icon(Icons.chevron_right_rounded, color: muted),

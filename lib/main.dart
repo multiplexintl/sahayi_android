@@ -17,7 +17,7 @@ Future<void> main() async {
   await AppLogger.init();
   _installErrorLogging();
   await GlobalConfiguration().loadFromAsset("config");
-  await ThemeService.init();
+  await ThemeService.init(); 
   _startLogUpload();
   AppLogger.info('AppStart', 'App started',
       details: 'Device: ${AppLogger.deviceSummary}, '

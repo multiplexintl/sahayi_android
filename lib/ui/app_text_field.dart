@@ -27,6 +27,7 @@ class AppTextField extends StatelessWidget {
   final FormFieldValidator<String>? validator;
   final TextAlign textAlign;
   final TextStyle? style;
+  final InputDecoration? additionalDecoration;
 
   const AppTextField({
     super.key,
@@ -51,11 +52,20 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.textAlign = TextAlign.start,
     this.style,
+    this.additionalDecoration,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final baseDecoration = InputDecoration(
+      hintText: hint,
+      prefixIcon:
+          prefixIcon == null ? null : Icon(prefixIcon, size: Sizes.iconSm + 2),
+      suffixIcon: suffix,
+      fillColor: enabled ? c.surface : c.surfaceAlt,
+    );
+
     final theme = Theme.of(context).textTheme;
     final field = TextFormField(
       controller: controller,
@@ -75,12 +85,12 @@ class AppTextField extends StatelessWidget {
       validator: validator,
       textAlign: textAlign,
       style: style ?? theme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: Sizes.iconSm + 2),
-        suffixIcon: suffix,
-        fillColor: enabled ? c.surface : c.surfaceAlt,
-      ),
+      decoration: additionalDecoration != null
+          ? baseDecoration.copyWith(
+              contentPadding: additionalDecoration?.contentPadding,
+              suffix: additionalDecoration?.suffix,
+            )
+          : baseDecoration,
     );
     if (label == null) return field;
     return Column(
