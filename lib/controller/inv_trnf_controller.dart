@@ -36,6 +36,10 @@ class InvoiceOrTransferController extends GetxController {
   final player = AudioPlayer();
   final String errorSound = "sound/wrong_barcode_1.wav";
   var lastInvoices = <DocMaster>[].obs;
+
+  /// Number of the invoice/transfer downloaded on this scanner (step 2), or
+  /// null. Lets "Recent" mark the one being scanned now.
+  final currentDocNum = RxnString();
   var isInvoice = true.obs;
   Rxn<Company> selectedCompany = Rxn<Company>();
   List<Company> companyList = [];
@@ -145,6 +149,13 @@ class InvoiceOrTransferController extends GetxController {
     log("Last Invoice Table: $lastInvoicesCheck");
     var list =
         lastInvoicesCheck.map((json) => DocMaster.fromJson(json)).toList();
+    final onDevice = await DBHelper.getItems(
+        tableName: DBHelper.docMaster,
+        columnName: DBHelper.docTypeDocMaster,
+        condition: docType ?? (isInvoice.value ? 'I' : 'T'));
+    currentDocNum.value = onDevice.isEmpty
+        ? null
+        : onDevice.first[DBHelper.docNumDocMaster] as String?;
     lastInvoices.value = list.reversed.toList();
     update();
   }
@@ -1071,6 +1082,7 @@ class InvoiceOrTransferController extends GetxController {
               lastInvsResult != -1) {
             docMaster.value = DocMaster(); // Clear local data
             lastInvoices.clear();
+            currentDocNum.value = null;
             CustomWidget.customSnackBar(
                 title: "Success!!", message: "Invoice deleted successfully.");
           } else {

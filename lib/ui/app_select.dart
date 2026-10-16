@@ -34,6 +34,22 @@ class AppSelectField<T> extends StatelessWidget {
     this.searchFrom = 8,
   });
 
+  /// Opens the list of the field that carries [key] (e.g. to move on from
+  /// the field before it). Does nothing if that field is not on screen.
+  static void openByKey(GlobalKey key) {
+    final field = key.currentWidget;
+    final context = key.currentContext;
+    if (field is AppSelectField && context != null) {
+      field._openIfActive(context);
+    }
+  }
+
+  // Checked inside the field, where T is known (reading onChanged through
+  // AppSelectField<dynamic> fails at runtime).
+  void _openIfActive(BuildContext context) {
+    if (enabled && onChanged != null) _open(context);
+  }
+
   Future<void> _open(BuildContext context) async {
     final picked = await showModalBottomSheet<T>(
       context: context,
@@ -69,17 +85,23 @@ class AppSelectField<T> extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: Sizes.control),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(children: [
-            if (icon != null) ...[Icon(icon, size: Sizes.iconSm + 2, color: c.muted), const SizedBox(width: 10)],
+            if (icon != null) ...[
+              Icon(icon, size: Sizes.iconSm + 2, color: c.muted),
+              const SizedBox(width: 10)
+            ],
             Expanded(
               child: Text(
                 value == null ? placeholder : itemLabel(value as T),
                 overflow: TextOverflow.ellipsis,
                 style: value == null
                     ? theme.bodyLarge?.copyWith(color: c.faint)
-                    : theme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: active ? c.text : c.muted),
+                    : theme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: active ? c.text : c.muted),
               ),
             ),
-            Icon(Icons.keyboard_arrow_down_rounded, color: active ? c.muted : c.disabledFg),
+            Icon(Icons.keyboard_arrow_down_rounded,
+                color: active ? c.muted : c.disabledFg),
           ]),
         ),
       ),
@@ -131,25 +153,31 @@ class _SelectSheetState<T> extends State<_SelectSheet<T>> {
     final shown = q.isEmpty
         ? widget.items
         : widget.items.where((i) {
-            final s = '${widget.itemLabel(i)} ${widget.itemSubtitle?.call(i) ?? ''}'.toLowerCase();
+            final s =
+                '${widget.itemLabel(i)} ${widget.itemSubtitle?.call(i) ?? ''}'
+                    .toLowerCase();
             return s.contains(q);
           }).toList();
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.md),
+              padding:
+                  const EdgeInsets.fromLTRB(Space.xl, 0, Space.xl, Space.md),
               child: Text(widget.title, style: theme.titleLarge),
             ),
             if (widget.searchable)
               Padding(
-                padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.sm),
+                padding:
+                    const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.sm),
                 child: TextField(
                   autofocus: false,
                   onChanged: (v) => setState(() => _q = v),
@@ -168,7 +196,8 @@ class _SelectSheetState<T> extends State<_SelectSheet<T>> {
                     )
                   : ListView.builder(
                       shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(Space.sm, 0, Space.sm, Space.lg),
+                      padding: const EdgeInsets.fromLTRB(
+                          Space.sm, 0, Space.sm, Space.lg),
                       itemCount: shown.length,
                       itemBuilder: (context, i) {
                         final item = shown[i];
@@ -180,7 +209,10 @@ class _SelectSheetState<T> extends State<_SelectSheet<T>> {
                           selectedColor: c.onPrimarySoft,
                           title: Text(widget.itemLabel(item)),
                           subtitle: sub == null ? null : Text(sub),
-                          trailing: selected ? Icon(Icons.check_rounded, color: c.onPrimarySoft) : null,
+                          trailing: selected
+                              ? Icon(Icons.check_rounded,
+                                  color: c.onPrimarySoft)
+                              : null,
                           onTap: () => Navigator.of(context).pop(item),
                         );
                       },

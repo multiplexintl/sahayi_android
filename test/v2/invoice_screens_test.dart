@@ -10,6 +10,7 @@ import 'package:sahayi_android/model/pickers/pickers.dart';
 import 'package:sahayi_android/view/Invoice_Transfer/invoice.dart';
 import 'package:sahayi_android/view/Invoice_Transfer/scan_invoice.dart';
 import 'package:sahayi_android/view/Invoice_Transfer/sync_invoice.dart';
+import 'package:sahayi_android/ui/ui.dart';
 import 'test_app.dart';
 
 /// Real controller, but without the network calls in onInit.
@@ -152,6 +153,42 @@ void _tests() {
         matching: find.byIcon(Icons.chevron_right_rounded));
     expect(arrowIn('25032179'), findsOneWidget);
     expect(arrowIn('25032700'), findsNothing);
+  });
+
+  testWidgets('Hub: the document on this scanner is marked; others say "sync again"', (tester) async {
+    eda52(tester, 1.3);
+    con.lastInvoices.assignAll([
+      DocMaster(docNum: '25032800', stat: 'N'),
+      DocMaster(docNum: '25032179', stat: 'N'),
+      DocMaster(docNum: '25032700', stat: 'Y'),
+    ]);
+    con.currentDocNum.value = '25032800';
+    await tester.pumpWidget(testApp(home: InvoiveTransferSceen()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('On scanner'), findsOneWidget);
+    expect(find.text('Tap to continue scanning'), findsOneWidget);
+    expect(find.text('Not completed'), findsOneWidget);
+    expect(find.text('Tap to sync again'), findsOneWidget);
+    expect(find.text('Completed'), findsOneWidget);
+    final current = find.ancestor(of: find.text('On scanner'), matching: find.byType(AppCard)).first;
+    expect(find.descendant(of: current, matching: find.text('25032800')), findsOneWidget);
+  });
+
+  testWidgets('Sync: keyboard Done on the number closes the keyboard and opens the picker list',
+      (tester) async {
+    eda52(tester, 1.0);
+    await tester.pumpWidget(testApp(home: const SyncInvoiceScreen()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '25032700');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump(const Duration(milliseconds: 300)); // keyboard closes first
+    await tester.pumpAndSettle();
+    expect(FocusManager.instance.primaryFocus?.context?.widget is EditableText, isFalse);
+    expect(find.text('Rashid K.'), findsOneWidget, reason: 'picker list is open');
+    await tester.tap(find.text('Rashid K.'));
+    await tester.pumpAndSettle();
+    expect(con.selectedPicker.value?.id, 'EX0085');
   });
 
   for (final font in [1.0, 1.3]) {

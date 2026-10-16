@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:sahayi_android/controller/inv_trnf_controller.dart';
 import 'package:sahayi_android/routes.dart';
 
+import '../../model/invoice/doc_master.dart';
 import '../../ui/ui.dart';
 
 /// Invoice / Transfer hub (Version 2): step 1 Sync, step 2 Scan, recent documents.
@@ -13,8 +14,6 @@ class InvoiveTransferSceen extends StatelessWidget {
   Widget build(BuildContext context) {
     final con = Get.find<InvoiceOrTransferController>();
     return Builder(builder: (context) {
-      final c = context.c;
-      final t = Theme.of(context).textTheme;
       final isInvoice = con.isInvoice.value;
       final noun = isInvoice ? 'invoice' : 'transfer';
       return Scaffold(
@@ -61,36 +60,13 @@ class InvoiveTransferSceen extends StatelessWidget {
                 for (final doc in recent)
                   Padding(
                     padding: const EdgeInsets.only(bottom: Space.sm),
-                    child: AppCard(
-                      radius: Radii.lg,
-                      // Unfinished: continue it, or sync it again (con.openRecent)
+                    child: _RecentCard(
+                      doc: doc,
+                      isInvoice: isInvoice,
+                      // the one downloaded on this scanner right now (step 2)
+                      current: doc.stat != 'Y' &&
+                          doc.docNum == con.currentDocNum.value,
                       onTap: doc.stat == 'Y' ? null : () => con.openRecent(doc),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: Space.md),
-                      child: Row(children: [
-                        Icon(
-                            isInvoice
-                                ? Icons.receipt_long_rounded
-                                : Icons.swap_horiz_rounded,
-                            color: c.muted,
-                            size: Sizes.iconSm + 2),
-                        const SizedBox(width: Space.md),
-                        Expanded(
-                          child: Text('${doc.docNum}',
-                              style: t.titleSmall?.copyWith(
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ])),
-                        ),
-                        doc.stat == 'Y'
-                            ? const StatusChip.done('Completed', small: true)
-                            : const StatusChip.progress('Not completed',
-                                small: true),
-                        if (doc.stat != 'Y') ...[
-                          const SizedBox(width: Space.xs),
-                          Icon(Icons.chevron_right_rounded, color: c.muted),
-                        ],
-                      ]),
                     ),
                   ),
               ]);
@@ -99,6 +75,75 @@ class InvoiveTransferSceen extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+/// One document in "Recent": completed, being scanned on this scanner now
+/// (highlighted, tap continues), or unfinished elsewhere (tap syncs again).
+class _RecentCard extends StatelessWidget {
+  final DocMaster doc;
+  final bool isInvoice;
+  final bool current;
+  final VoidCallback? onTap;
+  const _RecentCard(
+      {required this.doc,
+      required this.isInvoice,
+      required this.current,
+      this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final t = Theme.of(context).textTheme;
+    final done = doc.stat == 'Y';
+    return AppCard(
+      radius: Radii.lg,
+      onTap: onTap,
+      color: current ? c.primarySoft : null,
+      borderColor: current ? c.primary : null,
+      borderWidth: 1.5,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: Space.md),
+      child: Row(children: [
+        Icon(
+            current
+                ? Icons.qr_code_scanner_rounded
+                : (isInvoice
+                    ? Icons.receipt_long_rounded
+                    : Icons.swap_horiz_rounded),
+            color: current ? c.onPrimarySoft : c.muted,
+            size: Sizes.iconSm + 2),
+        const SizedBox(width: Space.md),
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${doc.docNum}',
+                style: t.titleSmall?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()])),
+            if (!done)
+              Text(current ? 'Tap to continue scanning' : 'Tap to sync again',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.bodySmall
+                      ?.copyWith(color: current ? c.onPrimarySoft : null)),
+          ]),
+        ),
+        if (done)
+          const StatusChip.done('Completed', small: true)
+        else if (current)
+          const StatusChip(
+              kind: StatusKind.info,
+              label: 'On scanner',
+              icon: Icons.play_arrow_rounded,
+              small: true)
+        else
+          const StatusChip.progress('Not completed', small: true),
+        if (!done) ...[
+          const SizedBox(width: Space.xs),
+          Icon(Icons.chevron_right_rounded,
+              color: current ? c.onPrimarySoft : c.muted),
+        ],
+      ]),
+    );
   }
 }
 
