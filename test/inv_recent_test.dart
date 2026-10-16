@@ -167,15 +167,14 @@ void main() {
       con.invController.text = '25032179';
       con.selectComapny(other);
       con.selectPicker(picker);
-      await con.syncInvoice();
-      // the save step runs un-awaited inside fold() (existing behaviour)
-      await Future.delayed(const Duration(milliseconds: 500));
+      await con.syncInvoice(); // returns only after the invoice is saved (M5)
     });
     await tester.pumpAndSettle();
     final rows = await tester.runAsync(() => DBHelper.getAllItems(tableName: DBHelper.lastInvoices));
     expect(rows!.single[DBHelper.companyLastInvoices], 'OTHR01');
     expect(rows.single[DBHelper.pickedByLastInvoices], 'EX0085');
     expect(con.lastInvoices.single.company, 'OTHR01');
+    expect(con.syncIsLoading.value, isFalse);
     expect(find.text('Success!!'), findsOneWidget);
   });
 

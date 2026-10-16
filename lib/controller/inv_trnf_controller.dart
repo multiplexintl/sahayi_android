@@ -311,8 +311,11 @@ class InvoiceOrTransferController extends GetxController {
         docType: isInvoice.value ? "I" : "T",
       );
 
-      syncResult.fold(
-        (failureMessage) {
+      // Awaited: the save step below must finish (spinner stays on) and its
+      // errors must reach the catch below. Unawaited, the spinner stopped
+      // early and a failed save showed no message.
+      await syncResult.fold<Future<void>>(
+        (failureMessage) async {
           AppLogger.warn(
               'SyncFailed', 'Server sync refused/failed: $failureMessage',
               docNum: invController.text, docType: isInvoice.value ? 'I' : 'T');
