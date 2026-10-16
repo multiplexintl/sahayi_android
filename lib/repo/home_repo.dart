@@ -11,6 +11,7 @@ import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 import '../model/invoice/doc_master.dart';
 import 'dart:io';
+import '../helper/url_query.dart';
 
 class HomeRepo {
   final String _url = GlobalConfiguration().getValue('api_base_url');
@@ -23,7 +24,7 @@ class HomeRepo {
     return await RetryHelper.retry<Either<String, bool>>(
       apiCall: () async {
         final Uri url = Uri.parse(
-            '${_url}Operational/Sync_Document?Company=$company&DocNum=$docNum&DocType=$docType');
+            '${_url}Operational/Sync_Document?Company=${q(company)}&DocNum=${q(docNum)}&DocType=${q(docType)}');
         // final client = http.Client();
         final client =
             await HttpClientHelper().getClient(); // Instead of http.Client()
@@ -71,7 +72,7 @@ class HomeRepo {
     return await RetryHelper.retry<List<DocMaster>>(
       apiCall: () async {
         final Uri url = Uri.parse(
-            '${_url}Return/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
+            '${_url}Return/DocumentGetRecords?DocNum=${q(docNum)}&DocType=${q(docType)}&Company=${q(company)}');
         log(url.toString());
         // final client = http.Client();
         final client =
@@ -108,7 +109,7 @@ class HomeRepo {
     return await RetryHelper.retry<bool>(
       apiCall: () async {
         final Uri url = Uri.parse(
-            '${_url}Operational/UpdateDocument?UserID=$userId&DocNum=$docNum&DocType=$docType&Company=$company&PickedBy=$pickedBy');
+            '${_url}Operational/UpdateDocument?UserID=${q(userId)}&DocNum=${q(docNum)}&DocType=${q(docType)}&Company=${q(company)}&PickedBy=${q(pickedBy)}');
         // final client = http.Client();
         final client =
             await HttpClientHelper().getClient(); // Instead of http.Client()

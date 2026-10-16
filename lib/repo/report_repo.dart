@@ -8,6 +8,7 @@ import 'package:sahayi_android/model/report/report.dart';
 
 import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
+import '../helper/url_query.dart';
 
 class ReportRepo {
   final String _url = GlobalConfiguration().getValue('api_base_url');
@@ -24,7 +25,7 @@ class ReportRepo {
     return await RetryHelper.retry<Either<String, List<Report>?>>(
         apiCall: () async {
           final Uri url = Uri.parse(
-              '${_url}Operational/GetRecentActivity?UserID=$empId&Company=$company&FromDate=$fromDate&ToDate=$toDate&DocNum=$docNum&DDType=$type&DocType=$docType');
+              '${_url}Operational/GetRecentActivity?UserID=${q(empId)}&Company=${q(company)}&FromDate=${q(fromDate)}&ToDate=${q(toDate)}&DocNum=${q(docNum)}&DDType=${q(type)}&DocType=${q(docType)}');
           // final client = http.Client();
           final client =
              await HttpClientHelper().getClient(); // Instead of http.Client()

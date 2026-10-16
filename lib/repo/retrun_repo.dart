@@ -12,6 +12,7 @@ import '../helper/retry_helper.dart';
 import '../model/invoice/doc_master.dart';
 import '../model/return/part.dart';
 import 'dart:async';
+import '../helper/url_query.dart';
 
 class RetrunRepo {
   final String _url = GlobalConfiguration().getValue('api_base_url');
@@ -20,7 +21,7 @@ class RetrunRepo {
     return await RetryHelper.retry<Either<String, List<Customer>?>>(
         apiCall: () async {
           final Uri url = Uri.parse(
-              '${_url}Return/Sync_NewCustomer?Company=$company&query=$query');
+              '${_url}Return/Sync_NewCustomer?Company=${q(company)}&query=${q(query)}');
           // final client = http.Client();
           final client =
               await HttpClientHelper().getClient(); // Instead of http.Client()
@@ -86,7 +87,7 @@ class RetrunRepo {
   }) async {
     return await RetryHelper.retry<Either<String, List<Part>?>>(
         apiCall: () async {
-          final Uri url = Uri.parse('${_url}Return/GetPartData?barcode=$query');
+          final Uri url = Uri.parse('${_url}Return/GetPartData?barcode=${q(query)}');
           // final client = http.Client();
           final client =
               await HttpClientHelper().getClient(); // Instead of http.Client()
@@ -123,7 +124,7 @@ class RetrunRepo {
     return await RetryHelper.retry<List<DocMaster>>(
       apiCall: () async {
         final Uri url = Uri.parse(
-            '${_url}Return/DocumentGetRecords?DocNum=$docNum&DocType=$docType&Company=$company');
+            '${_url}Return/DocumentGetRecords?DocNum=${q(docNum)}&DocType=${q(docType)}&Company=${q(company)}');
         log(url.toString());
         // final client = http.Client();
         final client =

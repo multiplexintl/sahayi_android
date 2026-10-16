@@ -6,6 +6,7 @@ import 'package:global_configuration/global_configuration.dart';
 import '../helper/http_client_helper.dart';
 import '../helper/retry_helper.dart';
 import '../model/user.dart';
+import '../helper/url_query.dart';
 
 class LoginRepo {
   final String _url = GlobalConfiguration().getValue('api_base_url');
@@ -15,7 +16,7 @@ class LoginRepo {
     return await RetryHelper.retry<Either<String, User>>(
       apiCall: () async {
         final Uri url =
-            Uri.parse('${_url}Login/GetUsersLogin?UserID=$empId&Pwd=$pwd');
+            Uri.parse('${_url}Login/GetUsersLogin?UserID=${q(empId)}&Pwd=${q(pwd)}');
         final client = await HttpClientHelper().getClient();
 
         final response = await client.get(url);
