@@ -34,10 +34,9 @@ class FinalizeReturnScreen extends StatelessWidget {
       Future<void> finalizeReturn() async {
         log(con.selectedCustomer.value.toString());
         final ok = await con.finalize();
-        if (!ok) {
-          AppToast.error('Not finalized', 'Something went wrong, try again.');
-          return;
-        }
+        // finalize() already showed why (connection, refused, not confirmed…);
+        // a second message here would replace that one.
+        if (!ok) return;
         Get.dialog(
           PopScope(
             canPop: false,

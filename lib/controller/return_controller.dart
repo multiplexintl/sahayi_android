@@ -6,6 +6,7 @@ import 'dart:math' hide log;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sahayi_android/controller/home_controller.dart';
 import 'package:sahayi_android/db/db.dart';
 import 'package:sahayi_android/helper/custom_widget.dart';
@@ -305,30 +306,12 @@ class ReturnController extends GetxController {
             : [];
         log("Found ${localItems.length} items in Local DB.");
 
-        // Step 4 fix: check result of SlNo DB update
-        if (localItems.isNotEmpty && lastApiSlNo > 0) {
-          log("Adjusting SL Numbers...");
-          int newSlNo = lastApiSlNo + 1;
-          for (var localItem in localItems) {
-            localItem.slNo = newSlNo++;
-          }
-
-          bool slNoUpdated = await _updateDatabase(
-            tableName: DBHelper.docDetail,
-            data: localItems.map((e) => e.toDB()).toList(),
-          );
-          if (!slNoUpdated) {
-            log("❌ Failed to update SL Numbers in local DB.");
-            CustomWidget.customSnackBar(
-              backgroundColor: Colors.red,
-              title: "Database Error",
-              message:
-                  "Failed to update item sequence numbers locally. Try again.",
-            );
-            return;
-          }
-          log("Updated SL Numbers in Local DB.");
-        }
+        // Local line numbers are NOT renumbered here any more. Renumbering
+        // re-saved each line through DocDetail.toDB(), whose DocNum has the
+        // customer ID cut off, so every resume left invisible copies under
+        // the wrong document number. Line numbers only need to be unique on
+        // this phone: finalize() numbers the uploaded lines after the
+        // server's highest line anyway.
 
         // **Set Next SL No and Move to Scan Screen**
         log(lastApiSlNo.toString());
@@ -844,10 +827,19 @@ class ReturnController extends GetxController {
   }
 
   /// **Fetch Part Details from API**
-  Future<void> fetchBarcodeDetails(String barcode,
+  /// Returns the part found for the selected company (also put in
+  /// [selectedPart]), or null. An answer that arrives after the barcode field
+  /// has changed is ignored: with a 14-digit barcode the lookup started at the
+  /// 13th digit can answer after the full barcode's lookup.
+  Future<Part?> fetchBarcodeDetails(String barcode,
       {required bool shouldRequestFocus}) async {
     final result = await RetrunRepo().getPart(query: barcode);
     log(result.toString());
+
+    if (barcodeController.text.trim() != barcode) {
+      log("Ignoring lookup for old barcode $barcode");
+      return null;
+    }
 
     result.fold(
       (error) {
@@ -897,6 +889,7 @@ class ReturnController extends GetxController {
         }
       },
     );
+    return selectedPart.value;
   }
 
   void onSavePart() async {
@@ -941,83 +934,115 @@ class ReturnController extends GetxController {
       return;
     }
 
+    // The item must be known: without it the line has no part number and the
+    // phone database refuses it. Not looked up yet (short barcode, or Save
+    // tapped before the lookup answered): look it up once now.
+    if (selectedPart.value == null) {
+      final part = await fetchBarcodeDetails(barcodeController.text.trim(),
+          shouldRequestFocus: false);
+      if (part == null) {
+        // The lookup itself stays silent for "not found" (it also runs while
+        // typing), so say it here.
+        AppLogger.info('ReturnSave',
+            'Not saved: no item for barcode ${barcodeController.text.trim()}');
+        CustomWidget.customSnackBar(
+          title: "Item not found",
+          message:
+              "No item for barcode ${barcodeController.text.trim()} in this company. Check the barcode and scan again.",
+          backgroundColor: Colors.red,
+        );
+        return;
+      }
+    }
+
     String fullDocNum = "${selectedCustomer.value.custId}${docNumber.value}";
 
-    // Fetch the highest SlNo in the database
-    var dbItems = await DBHelper.getItemsByQuery(
-      tableName: DBHelper.docDetail,
-      where:
-          '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
-      whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
-    );
-
-    int lastDbSlNo = dbItems.isNotEmpty
-        ? dbItems
-            .map((d) => d[DBHelper.slNoDocDetail] as int? ?? 0)
-            .reduce((a, b) => a > b ? a : b)
-        : scanStartingSlNo.value;
-
-    int nextSlNo = lastDbSlNo + 1;
-
-    log("Next SL No: $nextSlNo");
-
-    // Prepare data
-    var data = {
-      DBHelper.companyDocDetail: selectedCompany.value?.companyId,
-      DBHelper.docNumDocDetail: fullDocNum,
-      DBHelper.docTypeDocDetail: 'R',
-      DBHelper.barcodeDocDetail: barcodeController.text,
-      DBHelper.partNumDocDetail: selectedPart.value?.partNum,
-      DBHelper.partNameDocDetail: selectedPart.value?.partName,
-      DBHelper.brandDocDetail: selectedPart.value?.brand,
-      DBHelper.shipQtyDocDetail: 0,
-      DBHelper.checkQtyDocDetail: qty,
-      DBHelper.statDocDetail: 'N',
-      DBHelper.reasonCodeDocDetail: selectedReason.value?.reasonId,
-      DBHelper.reasonNameDocDetail: selectedReason.value?.reason,
-      DBHelper.expiryDateDocDetail: expiryDate.value,
-    };
-
-    log("Saving Item: $data");
-
-    var res = await DBHelper.insertItemWithSlNo(
-      tableName: DBHelper.docDetail,
-      data: data,
-      startingSlNo: nextSlNo,
-    );
-
-    log("Insert Result: $res");
-
-    if (res > 0) {
-      scanStartingSlNo.value = nextSlNo + 1; // Update SL No for next entry
-
-      var updatedDbItems = await DBHelper.getItemsByQuery(
+    try {
+      // Fetch the highest SlNo in the database
+      var dbItems = await DBHelper.getItemsByQuery(
         tableName: DBHelper.docDetail,
         where:
             '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
         whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
       );
 
-      savedItems.value =
-          updatedDbItems.map((element) => DocDetail.fromJson(element)).toList();
-      log(savedItems.toString());
-      barcodeController.clear();
-      qtyController.clear();
-      reasonController.clear();
-      expiryDateController.clear();
-      selectedReason.value = null;
-      selectedPart.value = null;
-      expiryDate.value = null;
-      FocusManager.instance.primaryFocus?.unfocus();
-      barcodeFocusNode.requestFocus();
-    } else {
-      AppLogger.error('LocalDbError', 'Failed to save return line on device',
-          docNum: fullDocNum,
-          docType: 'R',
-          details: 'Barcode ${barcodeController.text}');
+      int lastDbSlNo = dbItems.isNotEmpty
+          ? dbItems
+              .map((d) => d[DBHelper.slNoDocDetail] as int? ?? 0)
+              .reduce((a, b) => a > b ? a : b)
+          : scanStartingSlNo.value;
+
+      int nextSlNo = lastDbSlNo + 1;
+
+      log("Next SL No: $nextSlNo");
+
+      // Prepare data
+      var data = {
+        DBHelper.companyDocDetail: selectedCompany.value?.companyId,
+        DBHelper.docNumDocDetail: fullDocNum,
+        DBHelper.docTypeDocDetail: 'R',
+        DBHelper.barcodeDocDetail: barcodeController.text,
+        DBHelper.partNumDocDetail: selectedPart.value?.partNum,
+        DBHelper.partNameDocDetail: selectedPart.value?.partName,
+        DBHelper.brandDocDetail: selectedPart.value?.brand,
+        DBHelper.shipQtyDocDetail: 0,
+        DBHelper.checkQtyDocDetail: qty,
+        DBHelper.statDocDetail: 'N',
+        DBHelper.reasonCodeDocDetail: selectedReason.value?.reasonId,
+        DBHelper.reasonNameDocDetail: selectedReason.value?.reason,
+        DBHelper.expiryDateDocDetail: expiryDate.value,
+      };
+
+      log("Saving Item: $data");
+
+      var res = await DBHelper.insertItemWithSlNo(
+        tableName: DBHelper.docDetail,
+        data: data,
+        startingSlNo: nextSlNo,
+      );
+
+      log("Insert Result: $res");
+
+      if (res > 0) {
+        scanStartingSlNo.value = nextSlNo + 1; // Update SL No for next entry
+
+        var updatedDbItems = await DBHelper.getItemsByQuery(
+          tableName: DBHelper.docDetail,
+          where:
+              '${DBHelper.companyDocDetail} = ? AND ${DBHelper.docNumDocDetail} = ? AND ${DBHelper.docTypeDocDetail} = ?',
+          whereArgs: [selectedCompany.value?.companyId, fullDocNum, 'R'],
+        );
+
+        savedItems.value = updatedDbItems
+            .map((element) => DocDetail.fromJson(element))
+            .toList();
+        log(savedItems.toString());
+        barcodeController.clear();
+        qtyController.clear();
+        reasonController.clear();
+        expiryDateController.clear();
+        selectedReason.value = null;
+        selectedPart.value = null;
+        expiryDate.value = null;
+        FocusManager.instance.primaryFocus?.unfocus();
+        barcodeFocusNode.requestFocus();
+      } else {
+        AppLogger.error('LocalDbError', 'Failed to save return line on device',
+            docNum: fullDocNum,
+            docType: 'R',
+            details: 'Barcode ${barcodeController.text}');
+        CustomWidget.customSnackBar(
+          title: "Error!!",
+          message: "Something went wrong, please refresh the app",
+          backgroundColor: Colors.red,
+        );
+      }
+    } catch (e, st) {
+      AppLogger.error('LocalDbError', 'Saving return line crashed',
+          error: e, stack: st, docNum: fullDocNum, docType: 'R');
       CustomWidget.customSnackBar(
-        title: "Error!!",
-        message: "Something went wrong, please refresh the app",
+        title: "Not saved",
+        message: "The item could not be saved. Please scan it again.",
         backgroundColor: Colors.red,
       );
     }
@@ -1174,6 +1199,7 @@ class ReturnController extends GetxController {
   Future<bool> finalize() async {
     finalizeIsLoading.value = true;
     final logDocNum = "${selectedCustomer.value.custId}${docNumber.value}";
+    final company = selectedCompany.value?.companyId ?? '';
     AppLogger.info('FinalizeStart',
         '${consolidatedSavedItems.length} lines, total qty ${totalQty.value}',
         docNum: logDocNum, docType: 'R');
@@ -1193,8 +1219,21 @@ class ReturnController extends GetxController {
               "Could not connect to server. Check your connection and try again.",
           backgroundColor: Colors.red,
         );
-        finalizeIsLoading.value = false;
         return false;
+      }
+
+      // An earlier attempt for this return may have reached the server even
+      // though the phone got no answer (e.g. timeout). If those exact lines are
+      // there, it was saved: do not send it a second time.
+      final pending = await _loadPendingUpload(company, logDocNum);
+      if (pending != null) {
+        if (uploadIsOnServer(_serverLines(apiRes), pending)) {
+          AppLogger.warn('FinalizeRecovered',
+              'Earlier upload had reached the server; not sent again',
+              docNum: logDocNum, docType: 'R');
+          return await _clearAfterUpload(company, logDocNum);
+        }
+        await _clearPendingUpload(company, logDocNum);
       }
 
       int apiCount = apiRes.isNotEmpty
@@ -1236,71 +1275,63 @@ class ReturnController extends GetxController {
       var docMaster = generateReturnJson(masterData, toUpload);
       log(docMaster);
 
+      // Remember exactly what is being sent, until we know whether it arrived.
+      final sending = pendingLinesOf(toUpload);
+      await _savePendingUpload(company, logDocNum, sending);
+
       // Upload to API
       bool apiSuccess = await RetrunRepo().updateReturn(master: docMaster);
       log(apiSuccess.toString());
       if (!apiSuccess) {
-        log("API update failed.");
-        AppLogger.error('FinalizeFailed', 'Server did not accept CreateReturn',
+        // The server saves a return all-or-nothing, so asking it now tells us
+        // whether this upload arrived after all.
+        bool? onServer;
+        try {
+          onServer =
+              uploadIsOnServer(_serverLines(await getReturnDetails()), sending);
+        } catch (e) {
+          onServer = null; // server not reachable: unknown
+        }
+
+        if (onServer == true) {
+          AppLogger.warn('FinalizeRecovered',
+              'No answer to CreateReturn, but the server has the lines',
+              docNum: logDocNum, docType: 'R');
+          return await _clearAfterUpload(company, logDocNum);
+        }
+
+        if (onServer == false) {
+          await _clearPendingUpload(company, logDocNum);
+          log("API update failed.");
+          AppLogger.error(
+              'FinalizeFailed', 'Server did not accept CreateReturn',
+              docNum: logDocNum, docType: 'R');
+          CustomWidget.customSnackBar(
+            title: "Upload Failed",
+            message: "Failed to upload return to server. Please try again.",
+            backgroundColor: Colors.red,
+          );
+          return false;
+        }
+
+        // Unknown: keep the record; the next Finalize checks the server first.
+        AppLogger.error('FinalizeUnconfirmed',
+            'No answer to CreateReturn and the server could not be checked',
             docNum: logDocNum, docType: 'R');
         CustomWidget.customSnackBar(
-          title: "Upload Failed",
-          message: "Failed to upload return to server. Please try again.",
+          title: "Not confirmed",
+          message:
+              "The server did not answer, so the return may already be saved. "
+              "Do not scan it again. When the connection is back, tap Finalize "
+              "again: the app checks the server first and never sends it twice.",
           backgroundColor: Colors.red,
+          duration: 8,
         );
-        finalizeIsLoading.value = false;
         return false;
       }
 
       // API succeeded — clear local DB
-      var resMaster = await DBHelper.deleteItemsByQuery(
-          tableName: DBHelper.docMaster,
-          where:
-              '${DBHelper.companyDocMaster} = ? and ${DBHelper.docNumDocMaster} = ? and ${DBHelper.docTypeDocMaster} = ?',
-          whereArgs: [
-            selectedCompany.value?.companyId,
-            "${selectedCustomer.value.custId}${docNumber.value}",
-            'R'
-          ]);
-      log(resMaster.toString());
-
-      var resDet = await DBHelper.deleteItemsByQuery(
-          tableName: DBHelper.docDetail,
-          where:
-              '${DBHelper.companyDocDetail} = ? and ${DBHelper.docNumDocDetail} = ? and ${DBHelper.docTypeDocDetail} = ?',
-          whereArgs: [
-            selectedCompany.value?.companyId,
-            "${selectedCustomer.value.custId}${docNumber.value}",
-            'R'
-          ]);
-      log(resDet.toString());
-
-      if (resDet != -1 && resMaster != -1) {
-        log("DB cleanup successful.");
-        AppLogger.info(
-            'FinalizeDone', 'Return uploaded and cleared from device',
-            docNum: logDocNum, docType: 'R');
-        savedItems.clear();
-        consolidatedSavedItems.clear();
-        // selectedCustomer.value = Customer();
-        selectedPart.value = null;
-        finalizeIsLoading.value = false;
-        return true;
-      } else {
-        // Upload succeeded but local cleanup failed — warn user, do NOT let them retry (would double-upload)
-        log("DB cleanup failed after successful API upload.");
-        AppLogger.error(
-            'FinalizeCleanup', 'Uploaded, but clearing device data failed',
-            docNum: logDocNum, docType: 'R');
-        CustomWidget.customSnackBar(
-          title: "Warning",
-          message:
-              "Return was uploaded to server but local data cleanup failed. Please contact support.",
-          backgroundColor: Colors.orange,
-        );
-        finalizeIsLoading.value = false;
-        return true;
-      }
+      return await _clearAfterUpload(company, logDocNum);
     } catch (e, st) {
       AppLogger.error('FinalizeFailed', 'finalize crashed',
           error: e, stack: st, docNum: logDocNum, docType: 'R');
@@ -1310,10 +1341,113 @@ class ReturnController extends GetxController {
         message: "An error occurred: $e",
         backgroundColor: Colors.red,
       );
+      return false;
+    } finally {
+      finalizeIsLoading.value = false;
     }
+  }
 
-    finalizeIsLoading.value = false;
-    return false;
+  /// Removes the uploaded return from this phone. Returns true: the return IS
+  /// on the server (even if clearing the phone fails, it must not be re-sent).
+  Future<bool> _clearAfterUpload(String company, String fullDocNum) async {
+    await _clearPendingUpload(company, fullDocNum);
+
+    var resMaster = await DBHelper.deleteItemsByQuery(
+        tableName: DBHelper.docMaster,
+        where:
+            '${DBHelper.companyDocMaster} = ? and ${DBHelper.docNumDocMaster} = ? and ${DBHelper.docTypeDocMaster} = ?',
+        whereArgs: [company, fullDocNum, 'R']);
+    log(resMaster.toString());
+
+    var resDet = await DBHelper.deleteItemsByQuery(
+        tableName: DBHelper.docDetail,
+        where:
+            '${DBHelper.companyDocDetail} = ? and ${DBHelper.docNumDocDetail} = ? and ${DBHelper.docTypeDocDetail} = ?',
+        whereArgs: [company, fullDocNum, 'R']);
+    log(resDet.toString());
+
+    if (resDet != -1 && resMaster != -1) {
+      log("DB cleanup successful.");
+      AppLogger.info('FinalizeDone', 'Return uploaded and cleared from device',
+          docNum: fullDocNum, docType: 'R');
+      savedItems.clear();
+      consolidatedSavedItems.clear();
+      // selectedCustomer.value = Customer();
+      selectedPart.value = null;
+    } else {
+      // Upload succeeded but local cleanup failed — warn user, do NOT let them retry (would double-upload)
+      log("DB cleanup failed after successful API upload.");
+      AppLogger.error(
+          'FinalizeCleanup', 'Uploaded, but clearing device data failed',
+          docNum: fullDocNum, docType: 'R');
+      CustomWidget.customSnackBar(
+        title: "Warning",
+        message:
+            "Return was uploaded to server but local data cleanup failed. Please contact support.",
+        backgroundColor: Colors.orange,
+      );
+    }
+    return true;
+  }
+
+  static List<DocDetail> _serverLines(List<DocMaster> apiRes) =>
+      apiRes.isNotEmpty ? (apiRes[0].docDetails ?? const []) : const [];
+
+  /// What identifies an uploaded line on the server: number, part, quantity
+  /// and reason.
+  static List<Map<String, dynamic>> pendingLinesOf(
+          List<Map<String, dynamic>> toUpload) =>
+      [
+        for (final l in toUpload)
+          {
+            'SlNo': l[DBHelper.slNoDocDetail],
+            'PartNum': l[DBHelper.partNumDocDetail],
+            'CheckQty': l[DBHelper.checkQtyDocDetail],
+            'ReasonCode': l[DBHelper.reasonCodeDocDetail],
+          }
+      ];
+
+  /// True when every sent line is on the server with the same number, part,
+  /// quantity and reason. CreateReturn saves all lines or none, so this tells
+  /// whether that upload arrived.
+  static bool uploadIsOnServer(
+      List<DocDetail> serverLines, List<Map<String, dynamic>> sent) {
+    if (sent.isEmpty) return false;
+    final bySlNo = {for (final l in serverLines) l.slNo: l};
+    return sent.every((p) {
+      final s = bySlNo[p['SlNo']];
+      return s != null &&
+          (s.partNum ?? '') == (p['PartNum'] ?? '') &&
+          s.checkQty == p['CheckQty'] &&
+          (s.reasonCode ?? '') == (p['ReasonCode'] ?? '');
+    });
+  }
+
+  static String _pendingKey(String company, String fullDocNum) =>
+      'pendingReturnUpload|$company|$fullDocNum';
+
+  Future<void> _savePendingUpload(String company, String fullDocNum,
+      List<Map<String, dynamic>> lines) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pendingKey(company, fullDocNum), jsonEncode(lines));
+  }
+
+  Future<List<Map<String, dynamic>>?> _loadPendingUpload(
+      String company, String fullDocNum) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final text = prefs.getString(_pendingKey(company, fullDocNum));
+      if (text == null) return null;
+      return (jsonDecode(text) as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      log("Could not read pending upload: $e");
+      return null;
+    }
+  }
+
+  Future<void> _clearPendingUpload(String company, String fullDocNum) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingKey(company, fullDocNum));
   }
 
   void getTotalQty() {

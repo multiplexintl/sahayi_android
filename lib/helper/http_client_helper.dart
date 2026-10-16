@@ -1,5 +1,6 @@
 // lib/helper/http_client_helper.dart
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -9,6 +10,10 @@ import 'timeout_http_client.dart';
 
 class HttpClientHelper {
   static http.Client? _client;
+
+  /// Tests only: answer every API call with [client] (e.g. a MockClient).
+  @visibleForTesting
+  static set testClient(http.Client? client) => _client = client;
 
   // Returns a singleton client with our certificate chain pinned.
   // Uses withTrustedRoots: false so BoringSSL (Flutter/Android) only
