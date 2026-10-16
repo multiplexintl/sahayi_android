@@ -26,6 +26,8 @@ class TestController extends InvoiceOrTransferController {
   Future<void> finalize() async => calls.add('finalize');
   @override
   Future<void> getItemsThenToScanPage() async => calls.add('getItemsThenToScanPage');
+  @override
+  Future<void> openRecent(DocMaster doc) async => calls.add('openRecent ${doc.docNum}');
 }
 
 DocDetail item(int i, int check, int ship) => DocDetail(
@@ -134,6 +136,22 @@ void _tests() {
     expect(find.text('Not completed'), findsOneWidget);
     await tester.tap(find.text('Scan items'));
     expect(con.calls, contains('getItemsThenToScanPage'));
+  });
+
+  testWidgets('Hub: tapping an unfinished recent document opens it; completed ones do nothing',
+      (tester) async {
+    eda52(tester, 1.0);
+    con.lastInvoices.assignAll([DocMaster(docNum: '25032700', stat: 'Y'), DocMaster(docNum: '25032179', stat: 'N')]);
+    await tester.pumpWidget(testApp(home: InvoiveTransferSceen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('25032700'));
+    await tester.tap(find.text('25032179'));
+    expect(con.calls, ['openRecent 25032179']);
+    Finder arrowIn(String docNum) => find.descendant(
+        of: find.ancestor(of: find.text(docNum), matching: find.byType(Row)).first,
+        matching: find.byIcon(Icons.chevron_right_rounded));
+    expect(arrowIn('25032179'), findsOneWidget);
+    expect(arrowIn('25032700'), findsNothing);
   });
 
   for (final font in [1.0, 1.3]) {

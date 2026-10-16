@@ -23,7 +23,8 @@ class InvoiveTransferSceen extends StatelessWidget {
           badge: DocTypeBadge(isInvoice ? 'I' : 'T'),
         ),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(Space.screen, Space.xs, Space.screen, Space.xl),
+          padding: const EdgeInsets.fromLTRB(
+              Space.screen, Space.xs, Space.screen, Space.xl),
           children: [
             _StepCard(
               number: '1',
@@ -39,11 +40,14 @@ class InvoiveTransferSceen extends StatelessWidget {
                   subtitle: 'Check every item of the downloaded $noun',
                   icon: Icons.qr_code_scanner_rounded,
                   loading: con.scanIsLoading.value,
-                  onTap: con.scanIsLoading.value ? null : () => con.getItemsThenToScanPage(),
+                  onTap: con.scanIsLoading.value
+                      ? null
+                      : () => con.getItemsThenToScanPage(),
                 )),
             SectionLabel(
               'Recent ${noun}s',
-              padding: const EdgeInsets.fromLTRB(Space.xs, Space.xl, Space.xs, Space.sm),
+              padding: const EdgeInsets.fromLTRB(
+                  Space.xs, Space.xl, Space.xs, Space.sm),
             ),
             Obx(() {
               final recent = con.lastInvoices;
@@ -59,18 +63,33 @@ class InvoiveTransferSceen extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: Space.sm),
                     child: AppCard(
                       radius: Radii.lg,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: Space.md),
+                      // Unfinished: continue it, or sync it again (con.openRecent)
+                      onTap: doc.stat == 'Y' ? null : () => con.openRecent(doc),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: Space.md),
                       child: Row(children: [
-                        Icon(isInvoice ? Icons.receipt_long_rounded : Icons.swap_horiz_rounded,
-                            color: c.muted, size: Sizes.iconSm + 2),
+                        Icon(
+                            isInvoice
+                                ? Icons.receipt_long_rounded
+                                : Icons.swap_horiz_rounded,
+                            color: c.muted,
+                            size: Sizes.iconSm + 2),
                         const SizedBox(width: Space.md),
                         Expanded(
                           child: Text('${doc.docNum}',
-                              style: t.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                              style: t.titleSmall?.copyWith(
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ])),
                         ),
                         doc.stat == 'Y'
                             ? const StatusChip.done('Completed', small: true)
-                            : const StatusChip.progress('Not completed', small: true),
+                            : const StatusChip.progress('Not completed',
+                                small: true),
+                        if (doc.stat != 'Y') ...[
+                          const SizedBox(width: Space.xs),
+                          Icon(Icons.chevron_right_rounded, color: c.muted),
+                        ],
                       ]),
                     ),
                   ),
@@ -113,15 +132,23 @@ class _StepCard extends StatelessWidget {
           width: 44,
           height: 44,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: c.primarySoft, borderRadius: Radii.all(Radii.lg)),
+          decoration: BoxDecoration(
+              color: c.primarySoft, borderRadius: Radii.all(Radii.lg)),
           child: loading
-              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: c.primary))
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.4, color: c.primary))
               : Icon(icon, color: c.onPrimarySoft),
         ),
         const SizedBox(width: Space.md),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('STEP $number', style: t.labelSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('STEP $number',
+                style: t.labelSmall
+                    ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1)),
             const SizedBox(height: 2),
             Text(title, style: t.titleMedium),
             const SizedBox(height: 2),

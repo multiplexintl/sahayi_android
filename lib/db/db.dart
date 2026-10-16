@@ -1,4 +1,6 @@
 import 'dart:developer';
+
+import 'package:flutter/foundation.dart';
 // import 'dart:io';
 
 // import 'package:path_provider/path_provider.dart';
@@ -56,6 +58,8 @@ class DBHelper {
   static const String docNumLastInvoices = "DocNum";
   static const String docTypeLastInvoices = "DocType";
   static const String statLastInvoices = "Stat";
+  static const String companyLastInvoices = "Company"; // since DB version 3
+  static const String pickedByLastInvoices = "PickedBy"; // since DB version 3
 
   // get db
   static Future<Database> get db async {
@@ -96,7 +100,7 @@ class DBHelper {
 
     return openDatabase(
       dbPath,
-      version: 2, // Incremented version to apply schema changes
+      version: 3, // 3: LastInvoices remembers Company + PickedBy
       onCreate: (db, version) async {
         log("Creating new database...");
         await _createTables(db);
@@ -117,6 +121,23 @@ class DBHelper {
         if (oldVersion < 2) {
           // Future schema changes for version 3+
           log("Future upgrades can be added here.");
+        }
+
+        if (oldVersion < 3) {
+          // Recent invoices remember company and picker, so an unfinished one
+          // can be synced again with the form already filled in.
+          // Only add what is missing: adding an existing column fails and
+          // would stop the database from opening.
+          final existing =
+              (await db.rawQuery('PRAGMA table_info($lastInvoices)'))
+                  .map((c) => c['name'] as String)
+                  .toSet();
+          for (final column in [companyLastInvoices, pickedByLastInvoices]) {
+            if (!existing.contains(column)) {
+              await db.execute(
+                  "ALTER TABLE $lastInvoices ADD COLUMN $column TEXT NULL;");
+            }
+          }
         }
       },
     );
@@ -162,7 +183,10 @@ class DBHelper {
       $userIDLastInvoices TEXT NOT NULL,
       $docNumLastInvoices TEXT NOT NULL,
       $docTypeLastInvoices TEXT NOT NULL,
-      $statLastInvoices TEXT NOT NULL, PRIMARY KEY ($userIDLastInvoices,$docNumLastInvoices))""");
+      $statLastInvoices TEXT NOT NULL,
+      $companyLastInvoices TEXT NULL,
+      $pickedByLastInvoices TEXT NULL,
+      PRIMARY KEY ($userIDLastInvoices,$docNumLastInvoices))""");
   }
 
   // insert into table single function, takes table name and list of map data
@@ -753,6 +777,14 @@ class DBHelper {
   static Future<void> executeRawQuery(String query) async {
     final database = await db;
     await database.execute(query);
+  }
+
+  /// Tests only: forget the open database so the next call opens it again
+  /// (e.g. to test an upgrade).
+  @visibleForTesting
+  static Future<void> resetForTest() async {
+    await _db?.close();
+    _db = null;
   }
 
   // close database

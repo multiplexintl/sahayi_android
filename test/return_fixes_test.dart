@@ -112,6 +112,9 @@ class FakeServer {
 void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfiNoIsolate;
+  // Own folder: test files run in parallel and must not share the phone DB file.
+  setUpAll(() async => databaseFactory
+      .setDatabasesPath((await Directory.systemTemp.createTemp('sahayi_return_')).path));
 
   late FakeServer server;
   late ReturnController con;

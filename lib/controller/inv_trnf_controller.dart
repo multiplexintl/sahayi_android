@@ -149,6 +149,48 @@ class InvoiceOrTransferController extends GetxController {
     update();
   }
 
+  /// Tap on a document in "Recent". Completed: nothing. Unfinished and still
+  /// on this scanner (step 2): continue scanning it. Unfinished but replaced
+  /// by a newer sync: open Sync with number, company and picker filled in,
+  /// so it can be downloaded again and scanned from the start.
+  Future<void> openRecent(DocMaster doc) async {
+    if (doc.stat == 'Y' || doc.docNum == null) return;
+    try {
+      final onDevice = await DBHelper.getItemsByQuery(
+        tableName: DBHelper.docMaster,
+        where:
+            "${DBHelper.docNumDocMaster} = ? and ${DBHelper.docTypeDocMaster} = ?",
+        whereArgs: [doc.docNum, isInvoice.value ? 'I' : 'T'],
+      );
+      if (onDevice.isNotEmpty) {
+        AppLogger.info('RecentOpen', 'Continue scanning ${doc.docNum}',
+            docNum: doc.docNum);
+        await getItemsThenToScanPage();
+        return;
+      }
+
+      invController.text = doc.docNum!;
+      final company =
+          companyList.firstWhereOrNull((c) => c.companyId == doc.company);
+      selectComapny(company);
+      final picker = pickerList.firstWhereOrNull((p) => p.id == doc.pickedBy);
+      if (picker != null) {
+        selectPicker(picker);
+      } else {
+        selectedPicker.value = null;
+        pickerController.clear();
+      }
+      AppLogger.info('RecentOpen',
+          'Sync again ${doc.docNum} (company ${company?.companyId ?? '-'}, picker ${picker?.id ?? '-'})',
+          docNum: doc.docNum);
+      Get.toNamed(RouteLinks.syncInvoice);
+    } catch (e, st) {
+      AppLogger.error('RecentOpen', 'Opening recent ${doc.docNum} failed',
+          error: e, stack: st, docNum: doc.docNum);
+      _showErrorSnackbar("Could not open ${doc.docNum}. Please try again.");
+    }
+  }
+
   void getSystemDate() {
     var now = DateTime.now();
     date.value = DateFormat("dd-MM-yyyy").format(now);
@@ -333,7 +375,9 @@ class InvoiceOrTransferController extends GetxController {
             DBHelper.userIDLastInvoices: tempInvList.userId,
             DBHelper.docNumLastInvoices: tempInvList.docNum,
             DBHelper.docTypeLastInvoices: isInvoice.value ? 'I' : 'T',
-            DBHelper.statLastInvoices: tempInvList.stat
+            DBHelper.statLastInvoices: tempInvList.stat,
+            DBHelper.companyLastInvoices: selectedCompany.value?.companyId,
+            DBHelper.pickedByLastInvoices: selectedPicker.value?.id,
           };
           log(lastInvTableData.toString());
           await DBHelper().insertOrUpdateWithLimit(
@@ -864,7 +908,9 @@ class InvoiceOrTransferController extends GetxController {
         DBHelper.userIDLastInvoices: docMaster.value.userId,
         DBHelper.docNumLastInvoices: docMaster.value.docNum,
         DBHelper.docTypeLastInvoices: isInvoice.value ? 'I' : 'T',
-        DBHelper.statLastInvoices: 'Y'
+        DBHelper.statLastInvoices: 'Y',
+        DBHelper.companyLastInvoices: docMaster.value.company,
+        DBHelper.pickedByLastInvoices: docMaster.value.pickedBy,
       };
       log(lastInvTableData.toString());
       await _updateDatabase(
